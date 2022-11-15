@@ -113,6 +113,28 @@ schema = ["NFS", "BPF", "NBPF"]
 # ╔═╡ 7789a654-af1b-408a-86fc-26cc8ff221da
 md""" Select scheme : $(@bind sch Select(schema))"""
 
+# ╔═╡ d81cc134-1a4e-45a6-8657-f82372f8b66b
+md"""
+## Filters
+"""
+
+# ╔═╡ 4c92771a-8684-46ab-856a-627ac859a1fc
+md"""
+### Filter central values in nm
+"""
+
+# ╔═╡ f855c5a4-bf43-4247-b45f-c69957575ce0
+if sch == "NFS"
+	xfnm = [400.0, 438.0, 503.0, 549.0, 575.0, 600.0, 630.0, 676.0, 732.0, 810.0]
+	wfnm = [40.0, 24.0,   40.0,   17.0,  15.0,  14.0,  38.0,  29.0,  68.0,  10.0]
+elseif sch == "BPF"
+	xfnm = [438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0]
+	wfnm = [24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0]
+else
+	xfnm = [420.0,438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0,810.0]
+	wfnm = [10.0, 24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0, 10.0]
+end
+
 # ╔═╡ a2acebd8-c197-4418-855f-cb08ee24021b
 md"""
 # G2SL Characteristics
@@ -135,28 +157,6 @@ end
 md"""
 - In the spectrum shown above, signal below 500 nm is most likely an artifact.
 """
-
-# ╔═╡ d81cc134-1a4e-45a6-8657-f82372f8b66b
-md"""
-## Filters
-"""
-
-# ╔═╡ 4c92771a-8684-46ab-856a-627ac859a1fc
-md"""
-### Filter central values in nm
-"""
-
-# ╔═╡ f855c5a4-bf43-4247-b45f-c69957575ce0
-if sch == "NFS"
-	xfnm = [400.0, 438.0, 503.0, 549.0, 575.0, 600.0, 630.0, 676.0, 732.0, 810.0]
-	wfnm = [40.0, 24.0,   40.0,   17.0,  15.0,  14.0,  38.0,  29.0,  68.0,  10.0]
-elseif sch == "BPF"
-	xfnm = [438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0]
-	wfnm = [24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0]
-else
-	xfnm = [420.0,438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0,810.0]
-	wfnm = [10.0, 24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0, 10.0]
-end
 
 # ╔═╡ 76383212-4bb1-425f-b82c-6dca2f6db236
 begin
@@ -207,9 +207,38 @@ md"""
 - Plot shows the fraction of charge expected in each filter bin.
 """
 
+# ╔═╡ 7565e604-d434-4ba2-9594-f8d328dcca0f
+md"""
+# Parameters of the CCD
+"""
+
+# ╔═╡ adf99e37-bb92-4d6d-8a15-8dd159af31da
+begin
+	texp = 10.0
+	adctopes = 0.48
+	pixelsize = 16.0
+	pedestal = 100.0 * pixelsize
+	dcperpixel = 0.06 * pixelsize * texp
+	dcperpixelc = 0.06 * pixelsize * texp / adctopes
+	enoise = 1.0 * pixelsize
+	enoisec = enoise / adctopes
+	
+	md"""
+- Time of exposition (in sec) = $texp
+- adc to photoelect = $adctopes
+- pixelsize = $pixelsize
+- pedestal = $pedestal
+- dark current per pixel in e- = $dcperpixel
+- dark current + noise per pixel in e- = $(dcperpixel + enoise)
+- dark current in counts $dcperpixelc 
+- dark current + noise per pixel in e- = $(dcperpixelc + enoisec)
+	
+"""
+end
+
 # ╔═╡ 0122a81d-ee51-4355-8ddb-6429f15e8ea1
 md"""
-# Code
+# Analysis
 """
 
 # ╔═╡ c45b108e-62f9-473a-9975-eec4736d5df1
@@ -229,8 +258,15 @@ cmds = filter(name->occursin("CMOS",name), readdir(bcmdir))
 md""" Select CMOS dir : $(@bind scmos Select(cmds))"""
 end
 
-# ╔═╡ a25b5dfe-e076-48c3-83c0-258b04add965
-cmdir=joinpath(bcmdir,scmos)
+# ╔═╡ fd7b867f-2d49-4036-9b6f-0bb6966c32e6
+md"""
+runp and runop are the input and output data folders
+"""
+
+# ╔═╡ 838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
+md""" 
+## Analysis of single point
+"""
 
 # ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
 md"""
@@ -248,31 +284,34 @@ function select(dir)
 end
 
 # ╔═╡ c9e8c0f2-2776-43b5-87c6-c6c85e264924
-let
-subs = select(cmdir)
-md""" Select substrate : $(@bind ssub Select(subs))"""
+begin
+	cmdir=joinpath(bcmdir,scmos)
+	odir=joinpath(bodir,scmos)
+	subs = select(cmdir)
+	md""" Select substrate : $(@bind ssub Select(subs))"""
 end
-
-# ╔═╡ 5bd48d34-2b3c-47a5-8500-242e6a1f8f6f
-subsp=joinpath(cmdir,ssub)
 
 # ╔═╡ d5c5fbca-ae04-4ad7-a530-5f6e42f3e436
-let
-exps = select(subsp)
-md""" Select experiment : $(@bind sexp Select(exps))"""
+begin
+	subsp=joinpath(cmdir,ssub)
+	subsop=joinpath(odir,ssub)
+	exps = select(subsp)
+	md""" Select experiment : $(@bind sexp Select(exps))"""
 end
 
-# ╔═╡ 71662eae-76e8-449a-93ee-abd1c3000b34
-expp=joinpath(subsp,sexp)
-
 # ╔═╡ f90a27b0-d729-4a9a-afe6-a713c090f467
-let
-runs = select(expp)
-md""" Select run : $(@bind srun Select(runs))"""
+begin
+	expp=joinpath(subsp,sexp)
+	expop=joinpath(subsop,sexp)
+	runs = select(expp)
+	md""" Select run : $(@bind srun Select(runs))"""
 end
 
 # ╔═╡ b26174ef-ebb4-4fe3-a93d-d308d49488aa
+begin
 runp=joinpath(expp,srun)
+runop=joinpath(expop,srun)
+end
 
 # ╔═╡ efc2a88d-309d-410c-b635-3c841e695c08
 function load_df_from_csv(fp::String, csvg::CsvG; header=1)
@@ -303,30 +342,31 @@ end
 # ╠═8b4fa5c3-0efe-4aa7-98cf-d37c1e12bc74
 # ╠═e6de7c36-135f-43f6-a0e2-3eb65fd6cf57
 # ╠═7789a654-af1b-408a-86fc-26cc8ff221da
+# ╠═d81cc134-1a4e-45a6-8657-f82372f8b66b
+# ╠═4c92771a-8684-46ab-856a-627ac859a1fc
+# ╠═f855c5a4-bf43-4247-b45f-c69957575ce0
 # ╠═a2acebd8-c197-4418-855f-cb08ee24021b
 # ╠═5e02e22e-7c05-4af2-b7d5-f5c61f2cee11
 # ╠═025d7b0e-241a-4cf5-bf1a-47bc32a7e955
 # ╠═a01f191e-5f4a-4a56-9a39-b0494f02a0cd
-# ╠═d81cc134-1a4e-45a6-8657-f82372f8b66b
-# ╠═4c92771a-8684-46ab-856a-627ac859a1fc
-# ╠═f855c5a4-bf43-4247-b45f-c69957575ce0
 # ╠═76383212-4bb1-425f-b82c-6dca2f6db236
 # ╠═755a1675-906d-417e-a974-a6a9520f879d
 # ╠═9f30ed77-3d1a-474a-9659-7683ee429b03
 # ╠═a921505a-33c6-4d13-9ac9-f2fb7c1a7b02
 # ╠═16d5b19e-fdcb-4c44-9a92-d7fe8c0390df
 # ╠═4a08a8db-f86d-49c4-961e-bcce3ec41653
+# ╠═7565e604-d434-4ba2-9594-f8d328dcca0f
+# ╠═adf99e37-bb92-4d6d-8a15-8dd159af31da
 # ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
 # ╠═c45b108e-62f9-473a-9975-eec4736d5df1
 # ╠═da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
 # ╠═b9361344-165b-460c-85c6-0945f40612ef
-# ╠═a25b5dfe-e076-48c3-83c0-258b04add965
 # ╠═c9e8c0f2-2776-43b5-87c6-c6c85e264924
-# ╠═5bd48d34-2b3c-47a5-8500-242e6a1f8f6f
 # ╠═d5c5fbca-ae04-4ad7-a530-5f6e42f3e436
-# ╠═71662eae-76e8-449a-93ee-abd1c3000b34
 # ╠═f90a27b0-d729-4a9a-afe6-a713c090f467
+# ╠═fd7b867f-2d49-4036-9b6f-0bb6966c32e6
 # ╠═b26174ef-ebb4-4fe3-a93d-d308d49488aa
+# ╠═838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
