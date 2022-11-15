@@ -90,6 +90,15 @@ md"""
 - P. Herrero
 """
 
+# ╔═╡ 0937a6fc-6936-47d0-80de-8a38bb9a6a37
+md"""
+## Dropbox path
+Here you must enter de path of your LaserLab Dropbox. With this path, the program can access to every file in the Dropbox.
+"""
+
+# ╔═╡ 6d04e8fe-c174-4be5-bffc-40945e8074e5
+LaserLabp="C:\\Users\\Mikel\\LaserLab Dropbox\\"
+
 # ╔═╡ 8b4fa5c3-0efe-4aa7-98cf-d37c1e12bc74
 md"""
 # Scheme
@@ -104,19 +113,33 @@ schema = ["NFS", "BPF", "NBPF"]
 # ╔═╡ 7789a654-af1b-408a-86fc-26cc8ff221da
 md""" Select scheme : $(@bind sch Select(schema))"""
 
+# ╔═╡ a2acebd8-c197-4418-855f-cb08ee24021b
+md"""
+# G2SL Characteristics
+#"""
+
+# ╔═╡ 5e02e22e-7c05-4af2-b7d5-f5c61f2cee11
+g2slp=joinpath(LaserLabp,"Proyectos\\FLUORI\\G2\\G2SL\\BOLD_104_SIL_GB_onquartz")
+
+# ╔═╡ 025d7b0e-241a-4cf5-bf1a-47bc32a7e955
+begin
+g2df = lbl.BoldLab.load_df_from_csv(g2slp, 
+"Emisi_espec_G2SIL_quartz.csv", lbl.BoldLab.enG)
+	g2df = select!(g2df, [:L, :I])
+	plot(g2df.L,g2df.I, lw=2, label="G2SL")
+	xlabel!("λ (nm)")
+	ylabel!("arbitrary units")
+end
+
+# ╔═╡ a01f191e-5f4a-4a56-9a39-b0494f02a0cd
+md"""
+- In the spectrum shown above, signal below 500 nm is most likely an artifact.
+"""
+
 # ╔═╡ 0122a81d-ee51-4355-8ddb-6429f15e8ea1
 md"""
 # Code
 """
-
-# ╔═╡ 0937a6fc-6936-47d0-80de-8a38bb9a6a37
-md"""
-## Dropbox path
-Here you must enter de path of your LaserLab Dropbox. With this path, the program can access to every file in the Dropbox.
-"""
-
-# ╔═╡ 6d04e8fe-c174-4be5-bffc-40945e8074e5
-LaserLabp="C:\\Users\\Mikel\\LaserLab Dropbox\\"
 
 # ╔═╡ c45b108e-62f9-473a-9975-eec4736d5df1
 md""" 
@@ -180,6 +203,12 @@ end
 # ╔═╡ b26174ef-ebb4-4fe3-a93d-d308d49488aa
 runp=joinpath(expp,srun)
 
+# ╔═╡ efc2a88d-309d-410c-b635-3c841e695c08
+function load_df_from_csv(fp::String, csvg::CsvG; header=1)
+    csvf   = CSV.File(fp; header=header, delim=csvg.delim, decimal=csvg.decimal)
+    return DataFrame(csvf)
+end
+
 # ╔═╡ 0bf5c4a7-b369-4438-a987-253f242dd88f
 function dummy(x,y)
 	x+y
@@ -198,12 +227,16 @@ end
 # ╠═d88ba94f-dd9e-4c46-adac-4c3f7e556cad
 # ╠═51710bb8-9c4a-4abc-9fe9-02e87bd4e4c5
 # ╠═d1ace15e-fe1a-4552-9144-a0824ae8ae0f
+# ╠═0937a6fc-6936-47d0-80de-8a38bb9a6a37
+# ╠═6d04e8fe-c174-4be5-bffc-40945e8074e5
 # ╠═8b4fa5c3-0efe-4aa7-98cf-d37c1e12bc74
 # ╠═e6de7c36-135f-43f6-a0e2-3eb65fd6cf57
 # ╠═7789a654-af1b-408a-86fc-26cc8ff221da
+# ╠═a2acebd8-c197-4418-855f-cb08ee24021b
+# ╠═5e02e22e-7c05-4af2-b7d5-f5c61f2cee11
+# ╠═025d7b0e-241a-4cf5-bf1a-47bc32a7e955
+# ╠═a01f191e-5f4a-4a56-9a39-b0494f02a0cd
 # ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
-# ╠═0937a6fc-6936-47d0-80de-8a38bb9a6a37
-# ╠═6d04e8fe-c174-4be5-bffc-40945e8074e5
 # ╠═c45b108e-62f9-473a-9975-eec4736d5df1
 # ╠═da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
 # ╠═b9361344-165b-460c-85c6-0945f40612ef
@@ -218,4 +251,5 @@ end
 # ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b9970588-422f-461f-addb-5169d2e6043e
+# ╠═efc2a88d-309d-410c-b635-3c841e695c08
 # ╠═0bf5c4a7-b369-4438-a987-253f242dd88f
