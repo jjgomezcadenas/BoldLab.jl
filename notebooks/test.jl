@@ -90,6 +90,20 @@ md"""
 - P. Herrero
 """
 
+# ╔═╡ 8b4fa5c3-0efe-4aa7-98cf-d37c1e12bc74
+md"""
+# Scheme
+- Not Band Pass Filter (NBPF): Two wheels with filters, from 2 to 11. No band pass filter applied. 
+- Band Pass Filter: First wheel includes a BPF and filters 3 to 6. Second wheel filters 7 to 11. When taking data with second wheel, first wheel includes BPF.
+- New Filter Scheme (NFS): Two wheels with 10 filters, from 3 to 11. Band pass filters before the wheels. Filter set has been changed. 
+"""
+
+# ╔═╡ e6de7c36-135f-43f6-a0e2-3eb65fd6cf57
+schema = ["NFS", "BPF", "NBPF"]
+
+# ╔═╡ 7789a654-af1b-408a-86fc-26cc8ff221da
+md""" Select scheme : $(@bind sch Select(schema))"""
+
 # ╔═╡ 0122a81d-ee51-4355-8ddb-6429f15e8ea1
 md"""
 # Code
@@ -184,6 +198,9 @@ end
 # ╠═d88ba94f-dd9e-4c46-adac-4c3f7e556cad
 # ╠═51710bb8-9c4a-4abc-9fe9-02e87bd4e4c5
 # ╠═d1ace15e-fe1a-4552-9144-a0824ae8ae0f
+# ╠═8b4fa5c3-0efe-4aa7-98cf-d37c1e12bc74
+# ╠═e6de7c36-135f-43f6-a0e2-3eb65fd6cf57
+# ╠═7789a654-af1b-408a-86fc-26cc8ff221da
 # ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
 # ╠═0937a6fc-6936-47d0-80de-8a38bb9a6a37
 # ╠═6d04e8fe-c174-4be5-bffc-40945e8074e5
