@@ -236,14 +236,9 @@ begin
 """
 end
 
-# ╔═╡ 0122a81d-ee51-4355-8ddb-6429f15e8ea1
-md"""
-# Analysis
-"""
-
 # ╔═╡ c45b108e-62f9-473a-9975-eec4736d5df1
 md""" 
-## Select run
+# Select run
 """
 
 # ╔═╡ da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
@@ -263,10 +258,39 @@ md"""
 runp and runop are the input and output data folders
 """
 
+# ╔═╡ 0122a81d-ee51-4355-8ddb-6429f15e8ea1
+md"""
+# Analysis
+"""
+
+# ╔═╡ 54faa211-0796-4899-b56a-90d0ea73ce4a
+md"""
+## Position of points 
+- Positions folder contains measurements of the poistions of each point. 
+"""
+
+# ╔═╡ b896d27f-1a5f-4c25-86fa-4717bf94770b
+md"""
+## Algorithm
+- Find the position of the measured points
+- Measure the dark current (filter and point independent)
+- Select the spot (filter independent)
+- For each point, measure the response for all the filters
+"""
+
 # ╔═╡ 838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
 md""" 
 ## Analysis of single point
 """
+
+# ╔═╡ 9646801d-da05-4101-b453-8d12ed570475
+md"""
+### Dark current 
+- Dark folder contains measurements of the dark current for each filter. 
+"""
+
+# ╔═╡ ff92b592-9cdd-4b8c-a256-f09d166febc6
+md""" Select nsigma for DC suppression: $(@bind spsigma NumberField(1.0:100.0, default=3.0))"""
 
 # ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
 md"""
@@ -313,10 +337,25 @@ runp=joinpath(expp,srun)
 runop=joinpath(expop,srun)
 end
 
-# ╔═╡ efc2a88d-309d-410c-b635-3c841e695c08
-function load_df_from_csv(fp::String, csvg::CsvG; header=1)
-    csvf   = CSV.File(fp; header=header, delim=csvg.delim, decimal=csvg.decimal)
-    return DataFrame(csvf)
+# ╔═╡ b0bf7aed-3234-44ca-ac05-023545ba0987
+begin
+	ppath = joinpath(runp, "Positions")
+	pfb = readdir(ppath)[1]
+	pdf = lbl.BoldLab.load_df_from_csv(ppath, pfb, lbl.BoldLab.enG; header=0)
+	zp = pdf.Column1
+	xp = pdf.Column2
+	yp = pdf.Column3
+	psxyz = scatter(xp, xp, zp, xlabel="X (mm)", ylabel="Y (mm)", zlabel="Z (mm)")
+	xysp =scatter(xp, yp, label="")
+	xlabel!("x (mm)")
+	ylabel!("y (mm)")
+	xzp1 = scatter(xp, zp, label="")
+	xlabel!("x (mm)")
+	ylabel!("z (mm)")
+	yzp1 = scatter(yp, zp, label="")
+	xlabel!("y (mm)")
+	ylabel!("z (mm)")
+	plot(size=(750,750), psxyz, xysp, xzp1,yzp1, layout=(2,2))
 end
 
 # ╔═╡ 0bf5c4a7-b369-4438-a987-253f242dd88f
@@ -357,7 +396,6 @@ end
 # ╠═4a08a8db-f86d-49c4-961e-bcce3ec41653
 # ╠═7565e604-d434-4ba2-9594-f8d328dcca0f
 # ╠═adf99e37-bb92-4d6d-8a15-8dd159af31da
-# ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
 # ╠═c45b108e-62f9-473a-9975-eec4736d5df1
 # ╠═da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
 # ╠═b9361344-165b-460c-85c6-0945f40612ef
@@ -366,10 +404,15 @@ end
 # ╠═f90a27b0-d729-4a9a-afe6-a713c090f467
 # ╠═fd7b867f-2d49-4036-9b6f-0bb6966c32e6
 # ╠═b26174ef-ebb4-4fe3-a93d-d308d49488aa
+# ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
+# ╠═54faa211-0796-4899-b56a-90d0ea73ce4a
+# ╠═b0bf7aed-3234-44ca-ac05-023545ba0987
+# ╠═b896d27f-1a5f-4c25-86fa-4717bf94770b
 # ╠═838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
+# ╠═9646801d-da05-4101-b453-8d12ed570475
+# ╠═ff92b592-9cdd-4b8c-a256-f09d166febc6
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b9970588-422f-461f-addb-5169d2e6043e
-# ╠═efc2a88d-309d-410c-b635-3c841e695c08
 # ╠═0bf5c4a7-b369-4438-a987-253f242dd88f
