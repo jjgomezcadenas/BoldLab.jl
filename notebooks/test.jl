@@ -136,6 +136,77 @@ md"""
 - In the spectrum shown above, signal below 500 nm is most likely an artifact.
 """
 
+# ╔═╡ d81cc134-1a4e-45a6-8657-f82372f8b66b
+md"""
+## Filters
+"""
+
+# ╔═╡ 4c92771a-8684-46ab-856a-627ac859a1fc
+md"""
+### Filter central values in nm
+"""
+
+# ╔═╡ f855c5a4-bf43-4247-b45f-c69957575ce0
+if sch == "NFS"
+	xfnm = [400.0, 438.0, 503.0, 549.0, 575.0, 600.0, 630.0, 676.0, 732.0, 810.0]
+	wfnm = [40.0, 24.0,   40.0,   17.0,  15.0,  14.0,  38.0,  29.0,  68.0,  10.0]
+elseif sch == "BPF"
+	xfnm = [438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0]
+	wfnm = [24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0]
+else
+	xfnm = [420.0,438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0,810.0]
+	wfnm = [10.0, 24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0, 10.0]
+end
+
+# ╔═╡ 76383212-4bb1-425f-b82c-6dca2f6db236
+begin
+	filtnm = (center=xfnm,
+	width  = wfnm,
+	left = xfnm .- 0.5*wfnm,
+	right = xfnm .+ 0.5*wfnm)
+
+	println("Filter central values (nm) = ", filtnm.center, " width (nm) =", filtnm.width)
+end
+
+# ╔═╡ 755a1675-906d-417e-a974-a6a9520f879d
+md"""
+### Effect of filters in spectrum
+"""
+
+# ╔═╡ 9f30ed77-3d1a-474a-9659-7683ee429b03
+begin
+	wr=396.0:1.0:850.0
+	fg2 = lbl.BoldLab.dftof(wr, g2df, "I")
+	qs = [lbl.BoldLab.qpdf(fg2, filtnm.left[l], filtnm.right[l])/filtnm.width[l] for l in 1:length(xfnm)]
+	pqyd = plot(g2df.L,g2df.I, lw=2, label="G2SL")	
+	pfy = plot!(collect(wr), fg2.(wr), label="")
+	pqs = scatter!(xfnm, qs, label="Filters")
+	plot!(xfnm, qs, lw=2, label="")
+	xlabel!("Filter (nm)")
+	ylabel!("STD DC counts")
+end
+
+# ╔═╡ a921505a-33c6-4d13-9ac9-f2fb7c1a7b02
+md"""
+- The plot shows the expected discretized distribution of G2SL passed by the filters of the laser setup.  
+"""
+
+# ╔═╡ 16d5b19e-fdcb-4c44-9a92-d7fe8c0390df
+begin
+	qwl = lbl.BoldLab.qpdf(fg2, 0.0, 850.0)
+	qflt = [lbl.BoldLab.qpdf(fg2, filtnm.left[l], filtnm.right[l]) for l in 1:length(xfnm)]
+	qx = qflt ./qwl
+	scatter(xfnm, qx, label="Fraction of total charge per filter", legend=:topleft)
+	plot!(xfnm, qx, label="", legend=:topleft)
+	xlabel!("Filter (nm)")
+	ylabel!("STD DC counts")
+end
+
+# ╔═╡ 4a08a8db-f86d-49c4-961e-bcce3ec41653
+md"""
+- Plot shows the fraction of charge expected in each filter bin.
+"""
+
 # ╔═╡ 0122a81d-ee51-4355-8ddb-6429f15e8ea1
 md"""
 # Code
@@ -236,6 +307,15 @@ end
 # ╠═5e02e22e-7c05-4af2-b7d5-f5c61f2cee11
 # ╠═025d7b0e-241a-4cf5-bf1a-47bc32a7e955
 # ╠═a01f191e-5f4a-4a56-9a39-b0494f02a0cd
+# ╠═d81cc134-1a4e-45a6-8657-f82372f8b66b
+# ╠═4c92771a-8684-46ab-856a-627ac859a1fc
+# ╠═f855c5a4-bf43-4247-b45f-c69957575ce0
+# ╠═76383212-4bb1-425f-b82c-6dca2f6db236
+# ╠═755a1675-906d-417e-a974-a6a9520f879d
+# ╠═9f30ed77-3d1a-474a-9659-7683ee429b03
+# ╠═a921505a-33c6-4d13-9ac9-f2fb7c1a7b02
+# ╠═16d5b19e-fdcb-4c44-9a92-d7fe8c0390df
+# ╠═4a08a8db-f86d-49c4-961e-bcce3ec41653
 # ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
 # ╠═c45b108e-62f9-473a-9975-eec4736d5df1
 # ╠═da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
