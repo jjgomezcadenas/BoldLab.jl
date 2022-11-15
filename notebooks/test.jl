@@ -111,8 +111,8 @@ md"""
 
 # ╔═╡ da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
 begin
-bodir=joinpath(LaserLabp,"Proyectos\\pdata\\")
-bcmdir=joinpath(LaserLabp,"Proyectos\\data\\")
+bodir=joinpath(LaserLabp,"pdata\\")
+bcmdir=joinpath(LaserLabp,"data\\")
 end
 
 # ╔═╡ b9361344-165b-460c-85c6-0945f40612ef
@@ -128,6 +128,15 @@ cmdir=joinpath(bcmdir,scmos)
 md"""
 # Tests
 """
+
+# ╔═╡ 7d759e14-e9a9-440c-ac8a-de92ff312526
+@test ("data" in readdir(ENV["JLaserData"]))
+
+# ╔═╡ 2c1ca8f4-ed1a-46d1-9a34-1e76c9005a87
+@test ("pdata" in readdir(ENV["JLaserData"]))
+
+# ╔═╡ 905ca07b-5778-4d8a-815d-7a8bdd4b73d4
+@test ("FLUORI" in readdir(ENV["JLaserData"]))
 
 # ╔═╡ 20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 md"""
@@ -198,6 +207,9 @@ end
 # ╠═f90a27b0-d729-4a9a-afe6-a713c090f467
 # ╠═b26174ef-ebb4-4fe3-a93d-d308d49488aa
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
+# ╠═7d759e14-e9a9-440c-ac8a-de92ff312526
+# ╠═2c1ca8f4-ed1a-46d1-9a34-1e76c9005a87
+# ╠═905ca07b-5778-4d8a-815d-7a8bdd4b73d4
 # ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b9970588-422f-461f-addb-5169d2e6043e
