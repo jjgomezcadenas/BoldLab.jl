@@ -102,7 +102,7 @@ Here you must enter de path of your LaserLab Dropbox. With this path, the progra
 """
 
 # ╔═╡ 6d04e8fe-c174-4be5-bffc-40945e8074e5
-LaserLabp="C:\\Users\\Mikel\\LaserLab Dropbox\\"
+LaserLabp=ENV["JLaserData"]
 
 # ╔═╡ c45b108e-62f9-473a-9975-eec4736d5df1
 md""" 
