@@ -92,7 +92,7 @@ md"""
 
 # ╔═╡ 0937a6fc-6936-47d0-80de-8a38bb9a6a37
 md"""
-## Dropbox path
+# Root path
 Here you must enter de path of your LaserLab Dropbox. With this path, the program can access to every file in the Dropbox.
 """
 
@@ -297,6 +297,9 @@ md"""
 # Tests
 """
 
+# ╔═╡ 68eaa46d-94c0-43d9-b9e3-9bd84db26b63
+
+
 # ╔═╡ 20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 md"""
 # Functions
@@ -358,6 +361,110 @@ begin
 	plot(size=(750,750), psxyz, xysp, xzp1,yzp1, layout=(2,2))
 end
 
+# ╔═╡ 6d108da6-353f-47dc-8684-3bea555e3921
+"""
+Given a absolute path of a directory returns a list of files (of type dfiles) found
+in the directory.
+
+"""
+function return_files(path::String, 
+	                  dfiles="*.csv")
+	xfiles=readdir(path,join=true)
+	nxfiles=readdir(path)
+	xfiles, nxfiles
+	
+end
+
+# ╔═╡ a2ce4e48-73d0-491d-9de0-86a4409d358a
+@test typeof(return_files(runp,"Dark"))==Tuple{Vector{String}, Vector{String}}
+
+# ╔═╡ 411b89b3-178f-4e4a-bc83-af42e489b3eb
+"""
+Given the absolute path of the run returns the filter names by searching in the "Dark" folder.
+"""
+function flt_names(runp::String)
+	p=joinpath(runp,"Dark")
+	xnames=return_files(p)[2]
+	fxnb = [split(name, "_")[2] for name in xnames]
+	fxint = sort([parse(Int64, ff) for ff in fxnb])
+	[string("Filter_", string(i)) for i in fxint]
+end
+
+# ╔═╡ f68c5806-6c44-4a13-8811-a193d59e45ba
+[@test occursin("Filter",name) for name in flt_names(runp)]
+
+# ╔═╡ 100fa551-fe67-4cba-b9e5-77676c2c2c6f
+"""
+Given the absolute path of the run returns the filter names by searching in the "Filter1" folder.
+"""
+function point_names(runp::String)
+	p=joinpath(runp,"Filter1")
+	xnames=return_files(p)[2]
+	ns=[String(split(pd, "_")[1]) for pd in xnames]
+end
+
+# ╔═╡ 4d478749-935d-40a5-9431-0565ffa19e11
+"""
+"""
+function get_image_path(runp::String, point_name::String, flt_name::String)
+	ppath=joinpath(runp,point_name)
+	fs=return_files(ppath)[2]
+	fname=fs[findall([occursin(flt_name,name) for name in fs])]
+	path=joinpath(ppath,fname[1])
+end
+
+# ╔═╡ 09dc9013-eec5-42ea-8085-87ccc71a54aa
+"""
+"""
+function get_image(runp::String, point_name::String, flt_name::String)
+	path=get_image_path(runp,point_name,flt_name)
+	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
+	df1=Matrix(imgdf)
+end
+	
+
+# ╔═╡ 28885012-f552-4ded-bfe4-c2507a685146
+"""
+"""
+function get_nfimage(runp::String, point_name::String)
+	path=get_image_path(runp,"Filter1",point_name)
+	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
+	df1=Matrix(imgdf)
+end
+
+# ╔═╡ 1a0727c6-ea80-4026-a24a-9682737b90ec
+"""
+"""
+function get_dark(runp::String, flt_name::String,darkfolder::String="Dark")
+	path=get_image_path(runp,darkfolder,flt_name)
+	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
+	df1=Matrix(imgdf)
+end
+
+# ╔═╡ d53e52dc-bd7e-454e-8426-9c0dcfb5ac42
+begin
+	fltns = flt_names(runp)
+	DRK = [get_dark(runp,fltn) for fltn in fltns]
+	DRK0 = mean(DRK)  # mean pixel by pixel 
+	AVG = [mean(drk) for drk in DRK]
+	STD = [std(drk) for drk in DRK]
+	dkavg = mean(AVG)
+	dkstd = mean(STD)
+	drk0 = mean([drk .- dkavg for drk in DRK])
+end
+
+# ╔═╡ e5d1f8a3-bf9f-49c1-8b0d-5e745f6c5f34
+"""
+Given a ROI (eg, a matrix representing a section of an image) it returns an histogram of the signal in the ROI
+"""
+function histo_signal(iroi::Matrix{Float64}, nbin::Int=100)
+	vroi = vec(iroi)
+	mxvroi = maximum(vroi)
+	mnvroi = minimum(vroi)
+	lbl.BoldLab.hist1d(vroi, "signal in roi", nbin, mnvroi,mxvroi)
+end
+
+
 # ╔═╡ 0bf5c4a7-b369-4438-a987-253f242dd88f
 function dummy(x,y)
 	x+y
@@ -411,8 +518,20 @@ end
 # ╠═838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
 # ╠═9646801d-da05-4101-b453-8d12ed570475
 # ╠═ff92b592-9cdd-4b8c-a256-f09d166febc6
+# ╠═d53e52dc-bd7e-454e-8426-9c0dcfb5ac42
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
+# ╠═a2ce4e48-73d0-491d-9de0-86a4409d358a
+# ╠═f68c5806-6c44-4a13-8811-a193d59e45ba
+# ╠═68eaa46d-94c0-43d9-b9e3-9bd84db26b63
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b9970588-422f-461f-addb-5169d2e6043e
+# ╠═6d108da6-353f-47dc-8684-3bea555e3921
+# ╠═411b89b3-178f-4e4a-bc83-af42e489b3eb
+# ╠═100fa551-fe67-4cba-b9e5-77676c2c2c6f
+# ╠═4d478749-935d-40a5-9431-0565ffa19e11
+# ╠═09dc9013-eec5-42ea-8085-87ccc71a54aa
+# ╠═28885012-f552-4ded-bfe4-c2507a685146
+# ╠═1a0727c6-ea80-4026-a24a-9682737b90ec
+# ╠═e5d1f8a3-bf9f-49c1-8b0d-5e745f6c5f34
 # ╠═0bf5c4a7-b369-4438-a987-253f242dd88f
