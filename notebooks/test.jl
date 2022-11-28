@@ -111,8 +111,8 @@ md"""
 
 # ╔═╡ da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
 begin
-bodir=joinpath(LaserLabp,"pdata\\")
-bcmdir=joinpath(LaserLabp,"data\\")
+bodir=joinpath(LaserLabp,"pdata")
+bcmdir=joinpath(LaserLabp,"data")
 end
 
 # ╔═╡ b9361344-165b-460c-85c6-0945f40612ef
