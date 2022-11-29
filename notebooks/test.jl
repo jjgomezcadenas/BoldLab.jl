@@ -75,9 +75,6 @@ end
 # ╔═╡ f4e379c4-a2b2-4703-bcbc-f6d7c996354a
 lbl = ingredients("../src/BoldLab.jl")
 
-# ╔═╡ d88ba94f-dd9e-4c46-adac-4c3f7e556cad
-lbl.BoldLab.print_greeting()
-
 # ╔═╡ 51710bb8-9c4a-4abc-9fe9-02e87bd4e4c5
 PlutoUI.TableOfContents(title="Laser Lab CMOS analysis", indent=true)
 
@@ -141,7 +138,7 @@ md"""
 #"""
 
 # ╔═╡ 5e02e22e-7c05-4af2-b7d5-f5c61f2cee11
-g2slp=joinpath(LaserLabp,"Proyectos\\FLUORI\\G2\\G2SL\\BOLD_104_SIL_GB_onquartz")
+g2slp=joinpath(LaserLabp,"FLUORI/G2/G2SL/BOLD_104_SIL_GB_onquartz")
 
 # ╔═╡ 025d7b0e-241a-4cf5-bf1a-47bc32a7e955
 begin
@@ -492,7 +489,6 @@ end
 # ╠═9f71bc31-df8f-48c5-815a-c8db9e46100f
 # ╠═19035c0d-93a7-4bb9-be05-d2a9b9ac4619
 # ╠═f4e379c4-a2b2-4703-bcbc-f6d7c996354a
-# ╠═d88ba94f-dd9e-4c46-adac-4c3f7e556cad
 # ╠═51710bb8-9c4a-4abc-9fe9-02e87bd4e4c5
 # ╠═d1ace15e-fe1a-4552-9144-a0824ae8ae0f
 # ╠═0937a6fc-6936-47d0-80de-8a38bb9a6a37
@@ -530,8 +526,6 @@ end
 # ╠═838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
 # ╠═9646801d-da05-4101-b453-8d12ed570475
 # ╠═ff92b592-9cdd-4b8c-a256-f09d166febc6
-# ╠═d53e52dc-bd7e-454e-8426-9c0dcfb5ac42
-# ╠═15fa1119-f331-4cd8-825b-a878d4210ac7
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═7d759e14-e9a9-440c-ac8a-de92ff312526
 # ╠═2c1ca8f4-ed1a-46d1-9a34-1e76c9005a87
@@ -539,7 +533,6 @@ end
 # ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
 # ╠═a2ce4e48-73d0-491d-9de0-86a4409d358a
 # ╠═f68c5806-6c44-4a13-8811-a193d59e45ba
-# ╠═68eaa46d-94c0-43d9-b9e3-9bd84db26b63
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b9970588-422f-461f-addb-5169d2e6043e
 # ╠═6d108da6-353f-47dc-8684-3bea555e3921
