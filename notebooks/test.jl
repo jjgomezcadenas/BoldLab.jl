@@ -266,28 +266,30 @@ md"""
 - Positions folder contains measurements of the poistions of each point. 
 """
 
-# ╔═╡ b896d27f-1a5f-4c25-86fa-4717bf94770b
+# ╔═╡ a021d53f-c408-49d6-bb3c-6f8758c5e183
 md"""
-## Algorithm
-- Find the position of the measured points
-- Measure the dark current (filter and point independent)
-- Select the spot (filter independent)
-- For each point, measure the response for all the filters
+# Image visualization
 """
 
-# ╔═╡ 838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
-md""" 
-## Analysis of single point
-"""
-
-# ╔═╡ 9646801d-da05-4101-b453-8d12ed570475
+# ╔═╡ f3669d36-cfd5-40b7-a09e-d73e8159b031
 md"""
-### Dark current 
-- Dark folder contains measurements of the dark current for each filter. 
+## Filter1 
 """
 
-# ╔═╡ ff92b592-9cdd-4b8c-a256-f09d166febc6
-md""" Select nsigma for DC suppression: $(@bind spsigma NumberField(1.0:100.0, default=3.0))"""
+# ╔═╡ 71eab91d-df5c-405f-b8af-cea1de77a7c5
+md"""
+## Filtered image
+"""
+
+# ╔═╡ c36851fc-1bd2-4e5d-baad-d97555642850
+md"""
+### Dark
+"""
+
+# ╔═╡ b6a43048-7f11-43c2-9f6a-3a462e5f1299
+md"""
+### Image
+"""
 
 # ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
 md"""
@@ -393,6 +395,12 @@ function flt_names(runp::String)
 	[string("Filter_", string(i)) for i in fxint]
 end
 
+# ╔═╡ 966c7a16-ef71-49ff-a16a-9d2a9c22731e
+begin
+	flts=flt_names(runp)
+	md""" Select filter : $(@bind flt Select(flts))"""
+end
+
 # ╔═╡ f68c5806-6c44-4a13-8811-a193d59e45ba
 [@test occursin("Filter",name) for name in flt_names(runp)]
 
@@ -404,6 +412,12 @@ function point_names(runp::String)
 	p=joinpath(runp,"Filter1")
 	xnames=return_files(p)[2]
 	ns=[String(split(pd, "_")[1]) for pd in xnames]
+end
+
+# ╔═╡ 4dd6f397-0cd3-4c48-a8a2-20984418fb6f
+begin
+	pnts=point_names(runp)
+	md""" Select point : $(@bind pnt Select(pnts))"""
 end
 
 # ╔═╡ 4d478749-935d-40a5-9431-0565ffa19e11
@@ -426,6 +440,12 @@ function get_image(runp::String, point_name::String, flt_name::String)
 end
 	
 
+# ╔═╡ 6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
+begin
+	im=get_image(runp,pnt,flt)
+	heatmap(im)
+end
+
 # ╔═╡ 28885012-f552-4ded-bfe4-c2507a685146
 """
 """
@@ -433,6 +453,12 @@ function get_nfimage(runp::String, point_name::String)
 	path=get_image_path(runp,"Filter1",point_name)
 	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
 	df1=Matrix(imgdf)
+end
+
+# ╔═╡ 34c9c12c-2f39-4d4c-bc99-74b93304d724
+begin
+	nfim=get_nfimage(runp,pnt)
+	heatmap(nfim)
 end
 
 # ╔═╡ 1a0727c6-ea80-4026-a24a-9682737b90ec
@@ -444,35 +470,11 @@ function get_dark(runp::String, flt_name::String,darkfolder::String="Dark")
 	df1=Matrix(imgdf)
 end
 
-# ╔═╡ e5d1f8a3-bf9f-49c1-8b0d-5e745f6c5f34
-"""
-Given a ROI (eg, a matrix representing a section of an image) it returns an histogram of the signal in the ROI
-"""
-function histo_signal(iroi::Matrix{Float64}, nbin::Int=100)
-	vroi = vec(iroi)
-	mxvroi = maximum(vroi)
-	mnvroi = minimum(vroi)
-	lbl.BoldLab.hist1d(vroi, "signal in roi", nbin, mnvroi,mxvroi)
-end
-
-
-# ╔═╡ d53e52dc-bd7e-454e-8426-9c0dcfb5ac42
+# ╔═╡ b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
 begin
-	fltns = flt_names(runp)
-	DRK = [get_dark(runp,fltn) for fltn in fltns]
-	DRK0 = mean(DRK)  # mean pixel by pixel 
-	AVG = [mean(Float64.(drk)) for drk in DRK]
-	STD = [std(drk) for drk in DRK]
-	dkavg = mean(AVG)
-	HDRK = [histo_signal(drk) for drk in DRK]
-	PDRK = [HDRK[i][2] for i in 1:length(HDRK)]
-
-	dkstd = mean(STD)
-	drk0 = mean([drk .- dkavg for drk in DRK])
+	drk=get_dark(runp,flt)
+	heatmap(drk)
 end
-
-# ╔═╡ 15fa1119-f331-4cd8-825b-a878d4210ac7
-heatmap((DRK[7]))
 
 # ╔═╡ 0bf5c4a7-b369-4438-a987-253f242dd88f
 function dummy(x,y)
@@ -522,10 +524,16 @@ end
 # ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
 # ╠═54faa211-0796-4899-b56a-90d0ea73ce4a
 # ╠═b0bf7aed-3234-44ca-ac05-023545ba0987
-# ╠═b896d27f-1a5f-4c25-86fa-4717bf94770b
-# ╠═838eafb7-5c5b-4df5-98b1-dfbc94e58d1e
-# ╠═9646801d-da05-4101-b453-8d12ed570475
-# ╠═ff92b592-9cdd-4b8c-a256-f09d166febc6
+# ╠═a021d53f-c408-49d6-bb3c-6f8758c5e183
+# ╠═4dd6f397-0cd3-4c48-a8a2-20984418fb6f
+# ╠═f3669d36-cfd5-40b7-a09e-d73e8159b031
+# ╠═34c9c12c-2f39-4d4c-bc99-74b93304d724
+# ╠═71eab91d-df5c-405f-b8af-cea1de77a7c5
+# ╠═966c7a16-ef71-49ff-a16a-9d2a9c22731e
+# ╠═c36851fc-1bd2-4e5d-baad-d97555642850
+# ╠═b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
+# ╠═b6a43048-7f11-43c2-9f6a-3a462e5f1299
+# ╠═6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═7d759e14-e9a9-440c-ac8a-de92ff312526
 # ╠═2c1ca8f4-ed1a-46d1-9a34-1e76c9005a87
@@ -542,5 +550,4 @@ end
 # ╠═09dc9013-eec5-42ea-8085-87ccc71a54aa
 # ╠═28885012-f552-4ded-bfe4-c2507a685146
 # ╠═1a0727c6-ea80-4026-a24a-9682737b90ec
-# ╠═e5d1f8a3-bf9f-49c1-8b0d-5e745f6c5f34
 # ╠═0bf5c4a7-b369-4438-a987-253f242dd88f
