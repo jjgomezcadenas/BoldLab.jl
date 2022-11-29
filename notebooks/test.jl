@@ -255,14 +255,9 @@ md"""
 runp and runop are the input and output data folders
 """
 
-# ╔═╡ 0122a81d-ee51-4355-8ddb-6429f15e8ea1
-md"""
-# Analysis
-"""
-
 # ╔═╡ 54faa211-0796-4899-b56a-90d0ea73ce4a
 md"""
-## Position of points 
+# Position of points 
 - Positions folder contains measurements of the poistions of each point. 
 """
 
@@ -289,6 +284,11 @@ md"""
 # ╔═╡ b6a43048-7f11-43c2-9f6a-3a462e5f1299
 md"""
 ### Image
+"""
+
+# ╔═╡ 49d52be1-0803-49f7-8a67-6e46f847aa83
+md"""
+# Clusterization
 """
 
 # ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
@@ -420,6 +420,9 @@ begin
 	md""" Select point : $(@bind pnt Select(pnts))"""
 end
 
+# ╔═╡ abca5b48-0ee3-4085-b233-3154f405dd90
+[@test occursin("Point",name) for name in point_names(runp)]
+
 # ╔═╡ 4d478749-935d-40a5-9431-0565ffa19e11
 """
 """
@@ -476,13 +479,47 @@ begin
 	heatmap(drk)
 end
 
-# ╔═╡ 0bf5c4a7-b369-4438-a987-253f242dd88f
-function dummy(x,y)
-	x+y
+# ╔═╡ 2e19ae1a-8bff-4d3b-a406-cc710370029f
+"""
+"""
+function sujoy(img; four_connectivity=true)
+    img_channel = Gray.(img)
+
+    min_val = minimum(img_channel)
+    img_channel = img_channel .- min_val
+    max_val = maximum(img_channel)
+
+    if max_val == 0
+        return img
+    end
+
+    img_channel = img_channel./max_val
+
+    if four_connectivity
+        krnl_h = centered(Gray{Float32}[0 -1 -1 -1 0; 0 -1 -1 -1 0; 0 0 0 0 0; 0 1 1 1 0; 0 1 1 1 0]./12)
+        krnl_v = centered(Gray{Float32}[0 0 0 0 0; -1 -1 0 1 1;-1 -1 0 1 1;-1 -1 0 1 1;0 0 0 0 0 ]./12)
+    else
+        krnl_h = centered(Gray{Float32}[0 0 -1 0 0; 0 -1 -1 -1 0; 0 0 0 0 0; 0 1 1 1 0; 0 0 1 0 0]./8)
+        krnl_v = centered(Gray{Float32}[0 0 0 0 0;  0 -1 0 1 0; -1 -1 0 1 1;0 -1 0 1 0; 0 0 0 0 0 ]./8)
+    end
+
+    grad_h = imfilter(img_channel, krnl_h')
+    grad_v = imfilter(img_channel, krnl_v')
+
+    grad = (grad_h.^2) .+ (grad_v.^2)
+
+    return grad
 end
 
-# ╔═╡ 71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
-@test dummy(3,4) == 7
+# ╔═╡ 9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
+begin
+	imn=Float64.(im./maximum(im))
+	img_edge=Float64.(sujoy(imn,four_connectivity=true))
+	img_edgeb=binarize(img_edge,Otsu())
+	iedge = Tuple.(findall(x->x==1,img_edgeb))  #indexed of the edge
+	medge, xedge, yedge = permutedims(hcat(first.(iedge), last.(iedge))),first.(iedge), last.(iedge)  # edge expressed as matrix, x,y
+	heatmap(img_edgeb)
+end
 
 # ╔═╡ Cell order:
 # ╠═80a4e1cc-4d59-4c8a-9d65-1fe0d2d77bf2
@@ -521,7 +558,6 @@ end
 # ╠═f90a27b0-d729-4a9a-afe6-a713c090f467
 # ╠═fd7b867f-2d49-4036-9b6f-0bb6966c32e6
 # ╠═b26174ef-ebb4-4fe3-a93d-d308d49488aa
-# ╠═0122a81d-ee51-4355-8ddb-6429f15e8ea1
 # ╠═54faa211-0796-4899-b56a-90d0ea73ce4a
 # ╠═b0bf7aed-3234-44ca-ac05-023545ba0987
 # ╠═a021d53f-c408-49d6-bb3c-6f8758c5e183
@@ -534,13 +570,15 @@ end
 # ╠═b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
 # ╠═b6a43048-7f11-43c2-9f6a-3a462e5f1299
 # ╠═6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
+# ╠═49d52be1-0803-49f7-8a67-6e46f847aa83
+# ╠═9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═7d759e14-e9a9-440c-ac8a-de92ff312526
 # ╠═2c1ca8f4-ed1a-46d1-9a34-1e76c9005a87
 # ╠═905ca07b-5778-4d8a-815d-7a8bdd4b73d4
-# ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
 # ╠═a2ce4e48-73d0-491d-9de0-86a4409d358a
 # ╠═f68c5806-6c44-4a13-8811-a193d59e45ba
+# ╠═abca5b48-0ee3-4085-b233-3154f405dd90
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b9970588-422f-461f-addb-5169d2e6043e
 # ╠═6d108da6-353f-47dc-8684-3bea555e3921
@@ -550,4 +588,4 @@ end
 # ╠═09dc9013-eec5-42ea-8085-87ccc71a54aa
 # ╠═28885012-f552-4ded-bfe4-c2507a685146
 # ╠═1a0727c6-ea80-4026-a24a-9682737b90ec
-# ╠═0bf5c4a7-b369-4438-a987-253f242dd88f
+# ╠═2e19ae1a-8bff-4d3b-a406-cc710370029f
