@@ -441,18 +441,6 @@ function get_dark(runp::String, flt_name::String,darkfolder::String="Dark")
 	df1=Matrix(imgdf)
 end
 
-# ╔═╡ d53e52dc-bd7e-454e-8426-9c0dcfb5ac42
-begin
-	fltns = flt_names(runp)
-	DRK = [get_dark(runp,fltn) for fltn in fltns]
-	DRK0 = mean(DRK)  # mean pixel by pixel 
-	AVG = [mean(drk) for drk in DRK]
-	STD = [std(drk) for drk in DRK]
-	dkavg = mean(AVG)
-	dkstd = mean(STD)
-	drk0 = mean([drk .- dkavg for drk in DRK])
-end
-
 # ╔═╡ e5d1f8a3-bf9f-49c1-8b0d-5e745f6c5f34
 """
 Given a ROI (eg, a matrix representing a section of an image) it returns an histogram of the signal in the ROI
@@ -464,6 +452,24 @@ function histo_signal(iroi::Matrix{Float64}, nbin::Int=100)
 	lbl.BoldLab.hist1d(vroi, "signal in roi", nbin, mnvroi,mxvroi)
 end
 
+
+# ╔═╡ d53e52dc-bd7e-454e-8426-9c0dcfb5ac42
+begin
+	fltns = flt_names(runp)
+	DRK = [get_dark(runp,fltn) for fltn in fltns]
+	DRK0 = mean(DRK)  # mean pixel by pixel 
+	AVG = [mean(Float64.(drk)) for drk in DRK]
+	STD = [std(drk) for drk in DRK]
+	dkavg = mean(AVG)
+	HDRK = [histo_signal(drk) for drk in DRK]
+	PDRK = [HDRK[i][2] for i in 1:length(HDRK)]
+
+	dkstd = mean(STD)
+	drk0 = mean([drk .- dkavg for drk in DRK])
+end
+
+# ╔═╡ 15fa1119-f331-4cd8-825b-a878d4210ac7
+heatmap((DRK[7]))
 
 # ╔═╡ 0bf5c4a7-b369-4438-a987-253f242dd88f
 function dummy(x,y)
@@ -519,6 +525,7 @@ end
 # ╠═9646801d-da05-4101-b453-8d12ed570475
 # ╠═ff92b592-9cdd-4b8c-a256-f09d166febc6
 # ╠═d53e52dc-bd7e-454e-8426-9c0dcfb5ac42
+# ╠═15fa1119-f331-4cd8-825b-a878d4210ac7
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═71ed6fbd-0342-4cf5-9d8c-aa8f791d85f1
 # ╠═a2ce4e48-73d0-491d-9de0-86a4409d358a
