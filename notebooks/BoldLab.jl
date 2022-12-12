@@ -374,14 +374,21 @@ in the directory.
 """
 function return_files(path::String, 
 	                  dfiles="*.csv")
-	xfiles=readdir(path,join=true)
-	nxfiles=readdir(path)
+	xfiles=filter(fname->fname[1]!=only("."),readdir(path,join=true))
+	nxfiles=filter(fname->fname[1]!=only("."),readdir(path))
 	xfiles, nxfiles
 	
 end
 
 # ╔═╡ a2ce4e48-73d0-491d-9de0-86a4409d358a
 @test typeof(return_files(runp,"Dark"))==Tuple{Vector{String}, Vector{String}}
+
+# ╔═╡ 2d3e0100-d460-4f0e-8740-770b84d0c86b
+
+begin
+	strin=".ello"
+	strin[1]==only(".")
+end
 
 # ╔═╡ 411b89b3-178f-4e4a-bc83-af42e489b3eb
 """
@@ -513,8 +520,8 @@ end
 
 # ╔═╡ 9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
 begin
-	imn=Float64.(im./maximum(im))
-	img_edge=Float64.(sujoy(imn,four_connectivity=true))
+	nfimn=Float64.(nfim./maximum(nfim))
+	img_edge=Float64.(sujoy(nfimn,four_connectivity=true))
 	img_edgeb=binarize(img_edge,Otsu())
 	iedge = Tuple.(findall(x->x==1,img_edgeb))  #indexed of the edge
 	medge, xedge, yedge = permutedims(hcat(first.(iedge), last.(iedge))),first.(iedge), last.(iedge)  # edge expressed as matrix, x,y
@@ -582,6 +589,7 @@ end
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b9970588-422f-461f-addb-5169d2e6043e
 # ╠═6d108da6-353f-47dc-8684-3bea555e3921
+# ╠═2d3e0100-d460-4f0e-8740-770b84d0c86b
 # ╠═411b89b3-178f-4e4a-bc83-af42e489b3eb
 # ╠═100fa551-fe67-4cba-b9e5-77676c2c2c6f
 # ╠═4d478749-935d-40a5-9431-0565ffa19e11
