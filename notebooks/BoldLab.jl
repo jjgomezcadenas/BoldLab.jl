@@ -244,82 +244,20 @@ bodir=joinpath(LaserLabp,"pdata")
 bcmdir=joinpath(LaserLabp,"data")
 end
 
+# ╔═╡ f1234c0a-573e-42ca-a098-f0a1c009d6c7
+lbl.BoldLab.return_files(bcmdir)
+
 # ╔═╡ b9361344-165b-460c-85c6-0945f40612ef
 begin
-cmds = filter(name->occursin("CMOS",name), readdir(bcmdir))
+cmds = filter(name->occursin("CMOS",name), lbl.BoldLab.return_files(bcmdir))
 md""" Select CMOS dir : $(@bind scmos Select(cmds))"""
-end
-
-# ╔═╡ fd7b867f-2d49-4036-9b6f-0bb6966c32e6
-md"""
-runp and runop are the input and output data folders
-"""
-
-# ╔═╡ 54faa211-0796-4899-b56a-90d0ea73ce4a
-md"""
-# Position of points 
-- Positions folder contains measurements of the poistions of each point. 
-"""
-
-# ╔═╡ a021d53f-c408-49d6-bb3c-6f8758c5e183
-md"""
-# Image visualization
-"""
-
-# ╔═╡ f3669d36-cfd5-40b7-a09e-d73e8159b031
-md"""
-## Filter1 
-"""
-
-# ╔═╡ 71eab91d-df5c-405f-b8af-cea1de77a7c5
-md"""
-## Filtered image
-"""
-
-# ╔═╡ c36851fc-1bd2-4e5d-baad-d97555642850
-md"""
-### Dark
-"""
-
-# ╔═╡ b6a43048-7f11-43c2-9f6a-3a462e5f1299
-md"""
-### Image
-"""
-
-# ╔═╡ 49d52be1-0803-49f7-8a67-6e46f847aa83
-md"""
-# Clusterization
-"""
-
-# ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
-md"""
-# Tests
-"""
-
-# ╔═╡ 7d759e14-e9a9-440c-ac8a-de92ff312526
-@test ("data" in readdir(ENV["JLaserData"]))
-
-# ╔═╡ 2c1ca8f4-ed1a-46d1-9a34-1e76c9005a87
-@test ("pdata" in readdir(ENV["JLaserData"]))
-
-# ╔═╡ 905ca07b-5778-4d8a-815d-7a8bdd4b73d4
-@test ("FLUORI" in readdir(ENV["JLaserData"]))
-
-# ╔═╡ 20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
-md"""
-# Functions
-"""
-
-# ╔═╡ b9970588-422f-461f-addb-5169d2e6043e
-function select(dir)
-	readdir(dir)
 end
 
 # ╔═╡ c9e8c0f2-2776-43b5-87c6-c6c85e264924
 begin
 	cmdir=joinpath(bcmdir,scmos)
 	odir=joinpath(bodir,scmos)
-	subs = select(cmdir)
+	subs = lbl.BoldLab.return_files(cmdir)
 	md""" Select substrate : $(@bind ssub Select(subs))"""
 end
 
@@ -327,7 +265,7 @@ end
 begin
 	subsp=joinpath(cmdir,ssub)
 	subsop=joinpath(odir,ssub)
-	exps = select(subsp)
+	exps = lbl.BoldLab.return_files(subsp)
 	md""" Select experiment : $(@bind sexp Select(exps))"""
 end
 
@@ -335,15 +273,26 @@ end
 begin
 	expp=joinpath(subsp,sexp)
 	expop=joinpath(subsop,sexp)
-	runs = select(expp)
+	runs = lbl.BoldLab.return_files(expp)
 	md""" Select run : $(@bind srun Select(runs))"""
 end
+
+# ╔═╡ fd7b867f-2d49-4036-9b6f-0bb6966c32e6
+md"""
+runp and runop are the input and output data folders
+"""
 
 # ╔═╡ b26174ef-ebb4-4fe3-a93d-d308d49488aa
 begin
 runp=joinpath(expp,srun)
 runop=joinpath(expop,srun)
 end
+
+# ╔═╡ 54faa211-0796-4899-b56a-90d0ea73ce4a
+md"""
+# Position of points 
+- Positions folder contains measurements of the poistions of each point. 
+"""
 
 # ╔═╡ b0bf7aed-3234-44ca-ac05-023545ba0987
 begin
@@ -366,167 +315,81 @@ begin
 	plot(size=(750,750), psxyz, xysp, xzp1,yzp1, layout=(2,2))
 end
 
-# ╔═╡ 6d108da6-353f-47dc-8684-3bea555e3921
+# ╔═╡ a021d53f-c408-49d6-bb3c-6f8758c5e183
+md"""
+# Image visualization
 """
-Given a absolute path of a directory returns a list of files (of type dfiles) found
-in the directory.
-
-"""
-function return_files(path::String, 
-	                  dfiles="*.csv")
-	xfiles=filter(fname->fname[1]!=only("."),readdir(path,join=true))
-	nxfiles=filter(fname->fname[1]!=only("."),readdir(path))
-	xfiles, nxfiles
-	
-end
-
-# ╔═╡ a2ce4e48-73d0-491d-9de0-86a4409d358a
-@test typeof(return_files(runp,"Dark"))==Tuple{Vector{String}, Vector{String}}
-
-# ╔═╡ 2d3e0100-d460-4f0e-8740-770b84d0c86b
-
-begin
-	strin=".ello"
-	strin[1]==only(".")
-end
-
-# ╔═╡ 411b89b3-178f-4e4a-bc83-af42e489b3eb
-"""
-Given the absolute path of the run returns the filter names by searching in the "Dark" folder.
-"""
-function flt_names(runp::String)
-	p=joinpath(runp,"Dark")
-	xnames=return_files(p)[2]
-	fxnb = [split(name, "_")[2] for name in xnames]
-	fxint = sort([parse(Int64, ff) for ff in fxnb])
-	[string("Filter_", string(i)) for i in fxint]
-end
-
-# ╔═╡ 966c7a16-ef71-49ff-a16a-9d2a9c22731e
-begin
-	flts=flt_names(runp)
-	md""" Select filter : $(@bind flt Select(flts))"""
-end
-
-# ╔═╡ f68c5806-6c44-4a13-8811-a193d59e45ba
-[@test occursin("Filter",name) for name in flt_names(runp)]
-
-# ╔═╡ 100fa551-fe67-4cba-b9e5-77676c2c2c6f
-"""
-Given the absolute path of the run returns the filter names by searching in the "Filter1" folder.
-"""
-function point_names(runp::String)
-	p=joinpath(runp,"Filter1")
-	xnames=return_files(p)[2]
-	ns=[String(split(pd, "_")[1]) for pd in xnames]
-end
 
 # ╔═╡ 4dd6f397-0cd3-4c48-a8a2-20984418fb6f
 begin
-	pnts=point_names(runp)
+	pnts=lbl.BoldLab.point_names(runp)
 	md""" Select point : $(@bind pnt Select(pnts))"""
 end
 
-# ╔═╡ abca5b48-0ee3-4085-b233-3154f405dd90
-[@test occursin("Point",name) for name in point_names(runp)]
-
-# ╔═╡ 4d478749-935d-40a5-9431-0565ffa19e11
+# ╔═╡ f3669d36-cfd5-40b7-a09e-d73e8159b031
+md"""
+## Filter1 
 """
-"""
-function get_image_path(runp::String, point_name::String, flt_name::String)
-	ppath=joinpath(runp,point_name)
-	fs=return_files(ppath)[2]
-	fname=fs[findall([occursin(flt_name,name) for name in fs])]
-	path=joinpath(ppath,fname[1])
-end
-
-# ╔═╡ 09dc9013-eec5-42ea-8085-87ccc71a54aa
-"""
-"""
-function get_image(runp::String, point_name::String, flt_name::String)
-	path=get_image_path(runp,point_name,flt_name)
-	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
-	df1=Matrix(imgdf)
-end
-	
-
-# ╔═╡ 6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
-begin
-	im=get_image(runp,pnt,flt)
-	heatmap(im)
-end
-
-# ╔═╡ 28885012-f552-4ded-bfe4-c2507a685146
-"""
-"""
-function get_nfimage(runp::String, point_name::String)
-	path=get_image_path(runp,"Filter1",point_name)
-	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
-	df1=Matrix(imgdf)
-end
 
 # ╔═╡ 34c9c12c-2f39-4d4c-bc99-74b93304d724
 begin
-	nfim=get_nfimage(runp,pnt)
+	nfim=lbl.BoldLab.get_nfimage(runp,pnt)
 	heatmap(nfim)
 end
 
-# ╔═╡ 1a0727c6-ea80-4026-a24a-9682737b90ec
+# ╔═╡ 71eab91d-df5c-405f-b8af-cea1de77a7c5
+md"""
+## Filtered image
 """
-"""
-function get_dark(runp::String, flt_name::String,darkfolder::String="Dark")
-	path=get_image_path(runp,darkfolder,flt_name)
-	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
-	df1=Matrix(imgdf)
+
+# ╔═╡ 966c7a16-ef71-49ff-a16a-9d2a9c22731e
+begin
+	flts=lbl.BoldLab.flt_names(runp)
+	md""" Select filter : $(@bind flt Select(flts))"""
 end
+
+# ╔═╡ c36851fc-1bd2-4e5d-baad-d97555642850
+md"""
+### Dark
+"""
 
 # ╔═╡ b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
 begin
-	drk=get_dark(runp,flt)
+	drk=lbl.BoldLab.get_dark(runp,flt,"Dark")
 	heatmap(drk)
 end
 
-# ╔═╡ 2e19ae1a-8bff-4d3b-a406-cc710370029f
+# ╔═╡ b6a43048-7f11-43c2-9f6a-3a462e5f1299
+md"""
+### Image
 """
-"""
-function sujoy(img; four_connectivity=true)
-    img_channel = Gray.(img)
 
-    min_val = minimum(img_channel)
-    img_channel = img_channel .- min_val
-    max_val = maximum(img_channel)
-
-    if max_val == 0
-        return img
-    end
-
-    img_channel = img_channel./max_val
-
-    if four_connectivity
-        krnl_h = centered(Gray{Float32}[0 -1 -1 -1 0; 0 -1 -1 -1 0; 0 0 0 0 0; 0 1 1 1 0; 0 1 1 1 0]./12)
-        krnl_v = centered(Gray{Float32}[0 0 0 0 0; -1 -1 0 1 1;-1 -1 0 1 1;-1 -1 0 1 1;0 0 0 0 0 ]./12)
-    else
-        krnl_h = centered(Gray{Float32}[0 0 -1 0 0; 0 -1 -1 -1 0; 0 0 0 0 0; 0 1 1 1 0; 0 0 1 0 0]./8)
-        krnl_v = centered(Gray{Float32}[0 0 0 0 0;  0 -1 0 1 0; -1 -1 0 1 1;0 -1 0 1 0; 0 0 0 0 0 ]./8)
-    end
-
-    grad_h = imfilter(img_channel, krnl_h')
-    grad_v = imfilter(img_channel, krnl_v')
-
-    grad = (grad_h.^2) .+ (grad_v.^2)
-
-    return grad
+# ╔═╡ 6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
+begin
+	im=lbl.BoldLab.get_image(runp,pnt,flt)
+	heatmap(im)
 end
+
+# ╔═╡ f942b404-e66a-4d07-9740-902b9829aafd
+runp
+
+# ╔═╡ 49d52be1-0803-49f7-8a67-6e46f847aa83
+md"""
+# Clusterization
+"""
 
 # ╔═╡ 9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
-begin
-	nfimn=Float64.(nfim./maximum(nfim))
-	img_edge=Float64.(sujoy(nfimn,four_connectivity=true))
-	img_edgeb=binarize(img_edge,Otsu())
-	iedge = Tuple.(findall(x->x==1,img_edgeb))  #indexed of the edge
-	medge, xedge, yedge = permutedims(hcat(first.(iedge), last.(iedge))),first.(iedge), last.(iedge)  # edge expressed as matrix, x,y
-	heatmap(img_edgeb)
-end
+heatmap(lbl.BoldLab.Image_edge(nfim)[1])
+
+# ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
+md"""
+# Tests
+"""
+
+# ╔═╡ 20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
+md"""
+# Functions
+"""
 
 # ╔═╡ Cell order:
 # ╠═80a4e1cc-4d59-4c8a-9d65-1fe0d2d77bf2
@@ -559,6 +422,7 @@ end
 # ╠═adf99e37-bb92-4d6d-8a15-8dd159af31da
 # ╠═c45b108e-62f9-473a-9975-eec4736d5df1
 # ╠═da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
+# ╠═f1234c0a-573e-42ca-a098-f0a1c009d6c7
 # ╠═b9361344-165b-460c-85c6-0945f40612ef
 # ╠═c9e8c0f2-2776-43b5-87c6-c6c85e264924
 # ╠═d5c5fbca-ae04-4ad7-a530-5f6e42f3e436
@@ -577,23 +441,8 @@ end
 # ╠═b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
 # ╠═b6a43048-7f11-43c2-9f6a-3a462e5f1299
 # ╠═6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
+# ╠═f942b404-e66a-4d07-9740-902b9829aafd
 # ╠═49d52be1-0803-49f7-8a67-6e46f847aa83
 # ╠═9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
-# ╠═7d759e14-e9a9-440c-ac8a-de92ff312526
-# ╠═2c1ca8f4-ed1a-46d1-9a34-1e76c9005a87
-# ╠═905ca07b-5778-4d8a-815d-7a8bdd4b73d4
-# ╠═a2ce4e48-73d0-491d-9de0-86a4409d358a
-# ╠═f68c5806-6c44-4a13-8811-a193d59e45ba
-# ╠═abca5b48-0ee3-4085-b233-3154f405dd90
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
-# ╠═b9970588-422f-461f-addb-5169d2e6043e
-# ╠═6d108da6-353f-47dc-8684-3bea555e3921
-# ╠═2d3e0100-d460-4f0e-8740-770b84d0c86b
-# ╠═411b89b3-178f-4e4a-bc83-af42e489b3eb
-# ╠═100fa551-fe67-4cba-b9e5-77676c2c2c6f
-# ╠═4d478749-935d-40a5-9431-0565ffa19e11
-# ╠═09dc9013-eec5-42ea-8085-87ccc71a54aa
-# ╠═28885012-f552-4ded-bfe4-c2507a685146
-# ╠═1a0727c6-ea80-4026-a24a-9682737b90ec
-# ╠═2e19ae1a-8bff-4d3b-a406-cc710370029f
