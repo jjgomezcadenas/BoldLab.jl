@@ -16,8 +16,8 @@ end
 """
 Given the absolute path of the run returns the filter names by searching in the "Dark" folder.
 """
-function flt_names(runp::String)
-	p=joinpath(runp,"Dark")
+function flt_names(runp::String, dflt::String="Dark")
+	p=joinpath(runp,dflt)
 	xnames=return_files(p)
 	fxnb = [split(name, "_")[2] for name in xnames]
 	fxint = sort([parse(Int64, ff) for ff in fxnb])
@@ -27,8 +27,8 @@ end
 """
 Given the absolute path of the run returns the filter names by searching in the "Filter1" folder.
 """
-function point_names(runp::String)
-	p=joinpath(runp,"Filter1")
+function point_names(runp::String,dflt::String="Filter1")
+	p=joinpath(runp, dflt)
 	xnames=return_files(p)
 	ns=[String(split(pd, "_")[1]) for pd in xnames]
 end
@@ -52,15 +52,15 @@ end
 
 """
 """
-function get_nfimage(runp::String, point_name::String)
-	path=get_image_path(runp,"Filter1",point_name)
+function get_nfimage(runp::String, point_name::String, dflt::String="Filter1")
+	path=get_image_path(runp,dflt,point_name)
 	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
 	df1=Matrix(imgdf)
 end
 
 """
 """
-function get_dark(runp::String, flt_name::String,darkfolder::String="Dark")
+function get_dark(runp::String, flt_name::String, darkfolder::String="Dark")
 	path=get_image_path(runp,darkfolder,flt_name)
 	imgdf = DataFrame(CSV.File(path, header=false,delim="\t"))
 	df1=Matrix(imgdf)
