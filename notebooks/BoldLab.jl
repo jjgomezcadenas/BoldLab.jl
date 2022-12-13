@@ -314,7 +314,7 @@ end
 
 # ╔═╡ a021d53f-c408-49d6-bb3c-6f8758c5e183
 md"""
-# Image visualization
+# Single point
 """
 
 # ╔═╡ 4dd6f397-0cd3-4c48-a8a2-20984418fb6f
@@ -445,6 +445,11 @@ begin
 	histim_drkROI=stephist(sim_drk,bins=:100,yaxis=:log,size=(1000,400))
 end
 
+# ╔═╡ 967e407f-9919-4497-822e-a1f428c1e61f
+md"""
+## Spectrum
+"""
+
 # ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
 md"""
 # Tests
@@ -454,6 +459,43 @@ md"""
 md"""
 # Functions
 """
+
+# ╔═╡ b45e7a24-4906-40ac-8468-6d40e10663b8
+function sum_signal(runp,pnt,flt)
+	drk=lbl.BoldLab.get_dark(runp,flt)
+	im=lbl.BoldLab.get_image(runp,pnt,flt)
+	im_drk=im-drk
+	img_edge,ROI=lbl.BoldLab.Image_edge(nfim)
+	s=[im_drk[i,j] for (i,j) in ROI]
+	sumation=sum(s)
+end
+
+# ╔═╡ ac4670b5-a160-4207-8842-c029f38d4470
+@test typeof(sum_signal(runp,pnts[1],flts[1]))==Int64
+
+# ╔═╡ a8739f1f-6cd9-4be4-ae17-037fa3fc048f
+function signal_flts(runp,pnt)
+	nfim=lbl.BoldLab.get_nfimage(runp,pnt)
+	flts=lbl.BoldLab.flt_names(runp)
+	store=Vector{Float64}()
+	for flt in flts
+		s=sum_signal(runp,pnt,flt)
+		push!(store,s)
+	end
+	store
+end
+
+# ╔═╡ 1021f5b4-fb1a-48ea-a560-3488697ec045
+begin
+p0=plot(xfnm,signal_flts(runp,pnts[1]),title="Total charge",xlabel="wavelength (nm)")
+scatter!(xfnm,signal_flts(runp,pnts[1]))
+p1=plot(xfnm,signal_flts(runp,pnts[1])./wfnm,title="Total charge/filter width",xlabel="wavelength (nm)")
+scatter!(xfnm,signal_flts(runp,pnts[1])./wfnm)
+plot(p0,p1,size=(1000,500))
+end
+
+# ╔═╡ b90b15df-cf24-45f7-81a9-38598ca93fa2
+[@test size(signal_flts(runp,pnt))==size(flts) for pnt in pnts]
 
 # ╔═╡ Cell order:
 # ╠═80a4e1cc-4d59-4c8a-9d65-1fe0d2d77bf2
@@ -494,7 +536,7 @@ md"""
 # ╟─b26174ef-ebb4-4fe3-a93d-d308d49488aa
 # ╠═54faa211-0796-4899-b56a-90d0ea73ce4a
 # ╠═b0bf7aed-3234-44ca-ac05-023545ba0987
-# ╟─a021d53f-c408-49d6-bb3c-6f8758c5e183
+# ╠═a021d53f-c408-49d6-bb3c-6f8758c5e183
 # ╟─4dd6f397-0cd3-4c48-a8a2-20984418fb6f
 # ╟─f3669d36-cfd5-40b7-a09e-d73e8159b031
 # ╠═34c9c12c-2f39-4d4c-bc99-74b93304d724
@@ -516,5 +558,11 @@ md"""
 # ╠═019ab3d7-a98d-4277-87a2-1f8a67e90b80
 # ╠═d64ff72f-7e99-48d8-8dcc-3c69c5f496b3
 # ╠═bac91759-91d2-44aa-ad6c-7281a4f4d8be
+# ╟─967e407f-9919-4497-822e-a1f428c1e61f
+# ╠═1021f5b4-fb1a-48ea-a560-3488697ec045
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
+# ╠═ac4670b5-a160-4207-8842-c029f38d4470
+# ╠═b90b15df-cf24-45f7-81a9-38598ca93fa2
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
+# ╠═b45e7a24-4906-40ac-8468-6d40e10663b8
+# ╠═a8739f1f-6cd9-4be4-ae17-037fa3fc048f
