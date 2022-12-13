@@ -71,8 +71,7 @@ function Image_edge(nfim::Matrix)
 	img_edge=Float64.(sujoy(nfimn,four_connectivity=true))
 	img_edgeb=binarize(img_edge,Otsu())
 	iedge = Tuple.(findall(x->x==1,img_edgeb))  #indexed of the edge
-	medge = permutedims(hcat(first.(iedge), last.(iedge))),first.(iedge), last.(iedge)  # edge expressed as matrix, x,y
-	return img_edgeb, medge
+	return img_edgeb, iedge
 end
 
 """

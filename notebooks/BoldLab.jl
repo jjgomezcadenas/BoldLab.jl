@@ -244,9 +244,6 @@ bodir=joinpath(LaserLabp,"pdata")
 bcmdir=joinpath(LaserLabp,"data")
 end
 
-# ╔═╡ f1234c0a-573e-42ca-a098-f0a1c009d6c7
-lbl.BoldLab.return_files(bcmdir)
-
 # ╔═╡ b9361344-165b-460c-85c6-0945f40612ef
 begin
 cmds = filter(name->occursin("CMOS",name), lbl.BoldLab.return_files(bcmdir))
@@ -328,13 +325,24 @@ end
 
 # ╔═╡ f3669d36-cfd5-40b7-a09e-d73e8159b031
 md"""
-## Filter1 
+## Non-filtered image 
 """
 
 # ╔═╡ 34c9c12c-2f39-4d4c-bc99-74b93304d724
 begin
 	nfim=lbl.BoldLab.get_nfimage(runp,pnt)
 	heatmap(nfim)
+end
+
+# ╔═╡ 49d52be1-0803-49f7-8a67-6e46f847aa83
+md"""
+### Define ROI
+"""
+
+# ╔═╡ 9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
+begin
+img_edge,ROI=lbl.BoldLab.Image_edge(nfim)
+heatmap(img_edge)
 end
 
 # ╔═╡ 71eab91d-df5c-405f-b8af-cea1de77a7c5
@@ -353,10 +361,31 @@ md"""
 ### Dark
 """
 
+# ╔═╡ 6767a952-97ba-49f2-abcc-a812406ea702
+md"""
+- Left: Dark image
+- Right: Histogram of dark image
+"""
+
 # ╔═╡ b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
 begin
 	drk=lbl.BoldLab.get_dark(runp,flt,"Dark")
-	heatmap(drk)
+	vlsdrk=[vl for vl in vec(drk)]
+	histdrk=stephist(vlsdrk,bins=:100,yaxis=:log)
+	heatdrk=heatmap(drk)
+	plot(heatdrk,histdrk,size=(1000,400))
+end
+
+# ╔═╡ e06c0eee-beee-4137-acae-fb3ce6201268
+md"""
+Histogram of dark in ROI
+"""
+
+
+# ╔═╡ 447f648f-63ec-49bf-9f30-2624e86d5ff6
+begin
+	sdrk=[drk[i,j] for (i,j) in ROI]
+	histdrkROI=stephist(sdrk,bins=:100,yaxis=:log,size=(1000,400))
 end
 
 # ╔═╡ b6a43048-7f11-43c2-9f6a-3a462e5f1299
@@ -364,22 +393,57 @@ md"""
 ### Image
 """
 
+# ╔═╡ a8603145-c510-4de5-bb3d-ba3409c3f8ac
+md"""
+- Left: Image
+- Right: Histogram of image
+"""
+
 # ╔═╡ 6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
 begin
 	im=lbl.BoldLab.get_image(runp,pnt,flt)
-	heatmap(im)
+	vls=[vl for vl in vec(im)]
+	histim=stephist(vls,bins=:100,yaxis=:log)
+	heatim=heatmap(im)
+	plot(heatim,histim,size=(1000,400))
 end
 
-# ╔═╡ f942b404-e66a-4d07-9740-902b9829aafd
-runp
-
-# ╔═╡ 49d52be1-0803-49f7-8a67-6e46f847aa83
+# ╔═╡ 5644b297-d344-45ec-a801-1aa8d1c428a1
 md"""
-# Clusterization
+Histogram of image in ROI
 """
 
-# ╔═╡ 9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
-heatmap(lbl.BoldLab.Image_edge(nfim)[1])
+# ╔═╡ 95bea89c-720e-47a1-aa7e-a11300d585f5
+begin
+	sim=[im[i,j] for (i,j) in ROI]
+	histimROI=stephist(sim,bins=:100,yaxis=:log,size=(1000,400))
+end
+
+# ╔═╡ 704a83dd-3914-4803-a08d-6528892263b6
+md"""
+### Image-Dark
+"""
+
+# ╔═╡ 019ab3d7-a98d-4277-87a2-1f8a67e90b80
+md"""
+- Left: Image-Dark
+- Right: Histogram of image-dark
+"""
+
+# ╔═╡ d64ff72f-7e99-48d8-8dcc-3c69c5f496b3
+begin
+	im_drk=im-drk
+	vlsim_drk=[vl for vl in vec(im_drk)]
+	histim_drk=stephist(vlsim_drk,bins=:100,yaxis=:log)
+	heatim_drk=heatmap(im_drk)
+	plot(heatim_drk,histim_drk,size=(1000,400))
+end
+
+# ╔═╡ bac91759-91d2-44aa-ad6c-7281a4f4d8be
+begin
+	sim_drk=[im_drk[i,j] for (i,j) in ROI]
+	histim_drkROI=stephist(sim_drk,bins=:100,yaxis=:log,size=(1000,400))
+end
 
 # ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
 md"""
@@ -399,16 +463,16 @@ md"""
 # ╠═19035c0d-93a7-4bb9-be05-d2a9b9ac4619
 # ╠═f4e379c4-a2b2-4703-bcbc-f6d7c996354a
 # ╠═51710bb8-9c4a-4abc-9fe9-02e87bd4e4c5
-# ╠═d1ace15e-fe1a-4552-9144-a0824ae8ae0f
-# ╠═0937a6fc-6936-47d0-80de-8a38bb9a6a37
+# ╟─d1ace15e-fe1a-4552-9144-a0824ae8ae0f
+# ╟─0937a6fc-6936-47d0-80de-8a38bb9a6a37
 # ╠═6d04e8fe-c174-4be5-bffc-40945e8074e5
-# ╠═8b4fa5c3-0efe-4aa7-98cf-d37c1e12bc74
-# ╠═e6de7c36-135f-43f6-a0e2-3eb65fd6cf57
+# ╟─8b4fa5c3-0efe-4aa7-98cf-d37c1e12bc74
+# ╟─e6de7c36-135f-43f6-a0e2-3eb65fd6cf57
 # ╠═7789a654-af1b-408a-86fc-26cc8ff221da
 # ╠═d81cc134-1a4e-45a6-8657-f82372f8b66b
 # ╠═4c92771a-8684-46ab-856a-627ac859a1fc
 # ╠═f855c5a4-bf43-4247-b45f-c69957575ce0
-# ╠═a2acebd8-c197-4418-855f-cb08ee24021b
+# ╟─a2acebd8-c197-4418-855f-cb08ee24021b
 # ╠═5e02e22e-7c05-4af2-b7d5-f5c61f2cee11
 # ╠═025d7b0e-241a-4cf5-bf1a-47bc32a7e955
 # ╠═a01f191e-5f4a-4a56-9a39-b0494f02a0cd
@@ -417,32 +481,40 @@ md"""
 # ╠═9f30ed77-3d1a-474a-9659-7683ee429b03
 # ╠═a921505a-33c6-4d13-9ac9-f2fb7c1a7b02
 # ╠═16d5b19e-fdcb-4c44-9a92-d7fe8c0390df
-# ╠═4a08a8db-f86d-49c4-961e-bcce3ec41653
-# ╠═7565e604-d434-4ba2-9594-f8d328dcca0f
+# ╟─4a08a8db-f86d-49c4-961e-bcce3ec41653
+# ╟─7565e604-d434-4ba2-9594-f8d328dcca0f
 # ╠═adf99e37-bb92-4d6d-8a15-8dd159af31da
-# ╠═c45b108e-62f9-473a-9975-eec4736d5df1
-# ╠═da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
-# ╠═f1234c0a-573e-42ca-a098-f0a1c009d6c7
-# ╠═b9361344-165b-460c-85c6-0945f40612ef
-# ╠═c9e8c0f2-2776-43b5-87c6-c6c85e264924
-# ╠═d5c5fbca-ae04-4ad7-a530-5f6e42f3e436
-# ╠═f90a27b0-d729-4a9a-afe6-a713c090f467
-# ╠═fd7b867f-2d49-4036-9b6f-0bb6966c32e6
-# ╠═b26174ef-ebb4-4fe3-a93d-d308d49488aa
+# ╟─c45b108e-62f9-473a-9975-eec4736d5df1
+# ╟─da7dcbd8-75c3-42d5-9958-5ccbcc9624f1
+# ╟─b9361344-165b-460c-85c6-0945f40612ef
+# ╟─c9e8c0f2-2776-43b5-87c6-c6c85e264924
+# ╟─d5c5fbca-ae04-4ad7-a530-5f6e42f3e436
+# ╟─f90a27b0-d729-4a9a-afe6-a713c090f467
+# ╟─fd7b867f-2d49-4036-9b6f-0bb6966c32e6
+# ╟─b26174ef-ebb4-4fe3-a93d-d308d49488aa
 # ╠═54faa211-0796-4899-b56a-90d0ea73ce4a
 # ╠═b0bf7aed-3234-44ca-ac05-023545ba0987
-# ╠═a021d53f-c408-49d6-bb3c-6f8758c5e183
-# ╠═4dd6f397-0cd3-4c48-a8a2-20984418fb6f
-# ╠═f3669d36-cfd5-40b7-a09e-d73e8159b031
+# ╟─a021d53f-c408-49d6-bb3c-6f8758c5e183
+# ╟─4dd6f397-0cd3-4c48-a8a2-20984418fb6f
+# ╟─f3669d36-cfd5-40b7-a09e-d73e8159b031
 # ╠═34c9c12c-2f39-4d4c-bc99-74b93304d724
-# ╠═71eab91d-df5c-405f-b8af-cea1de77a7c5
-# ╠═966c7a16-ef71-49ff-a16a-9d2a9c22731e
-# ╠═c36851fc-1bd2-4e5d-baad-d97555642850
-# ╠═b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
-# ╠═b6a43048-7f11-43c2-9f6a-3a462e5f1299
-# ╠═6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
-# ╠═f942b404-e66a-4d07-9740-902b9829aafd
-# ╠═49d52be1-0803-49f7-8a67-6e46f847aa83
+# ╟─49d52be1-0803-49f7-8a67-6e46f847aa83
 # ╠═9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
+# ╟─71eab91d-df5c-405f-b8af-cea1de77a7c5
+# ╟─966c7a16-ef71-49ff-a16a-9d2a9c22731e
+# ╟─c36851fc-1bd2-4e5d-baad-d97555642850
+# ╠═6767a952-97ba-49f2-abcc-a812406ea702
+# ╠═b04549e8-2a06-4bf3-a8d7-9c48e352a1a7
+# ╠═e06c0eee-beee-4137-acae-fb3ce6201268
+# ╠═447f648f-63ec-49bf-9f30-2624e86d5ff6
+# ╟─b6a43048-7f11-43c2-9f6a-3a462e5f1299
+# ╠═a8603145-c510-4de5-bb3d-ba3409c3f8ac
+# ╠═6f1141c9-908d-40dc-ab2b-e3bbfdcd74cb
+# ╟─5644b297-d344-45ec-a801-1aa8d1c428a1
+# ╠═95bea89c-720e-47a1-aa7e-a11300d585f5
+# ╠═704a83dd-3914-4803-a08d-6528892263b6
+# ╠═019ab3d7-a98d-4277-87a2-1f8a67e90b80
+# ╠═d64ff72f-7e99-48d8-8dcc-3c69c5f496b3
+# ╠═bac91759-91d2-44aa-ad6c-7281a4f4d8be
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
