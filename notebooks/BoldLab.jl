@@ -450,6 +450,21 @@ md"""
 ## Spectrum
 """
 
+# ╔═╡ 1b401135-decc-4ca3-85ae-139a55c9ad64
+md"""
+# Spectrum for all points
+"""
+
+# ╔═╡ 27be6cae-4c5d-4f0e-bb0e-259adb4ade59
+md"""
+## Total charge in each filter
+"""
+
+# ╔═╡ f6329740-963a-41b7-8a3a-d08ead791aba
+md"""
+## Total charge in each filter / filter width
+"""
+
 # ╔═╡ 853b8b2e-66ed-4723-8884-213e5fd4a0e7
 md"""
 # Tests
@@ -492,6 +507,33 @@ scatter!(xfnm,signal_flts(runp,pnts[1]))
 p1=plot(xfnm,signal_flts(runp,pnts[1])./wfnm,title="Total charge/filter width",xlabel="wavelength (nm)")
 scatter!(xfnm,signal_flts(runp,pnts[1])./wfnm)
 plot(p0,p1,size=(1000,500))
+end
+
+# ╔═╡ 8889f58d-fb86-4b55-a36e-d6a59ac94aa1
+begin
+plots0=[]
+plots1=[]
+for pnt in pnts
+	s=signal_flts(runp,pnt)
+	p0=plot(xfnm,s,xlabel="wavelength (nm)")
+	scatter!(xfnm,s)
+	push!(plots0,p0)
+	p1=plot(xfnm,s./wfnm,xlabel="wavelength (nm)")
+	scatter!(xfnm,s./wfnm)
+	push!(plots1,p1)
+end
+end
+
+# ╔═╡ e767fdda-bc58-423d-ab32-3dc64f80f681
+begin
+plot(plots0...,size=(1000,1000))
+title!("Total charge")
+end
+
+# ╔═╡ a0ab96ff-d512-436a-9510-4c9eb61aecf0
+begin
+plot(plots1...,size=(1000,1000))
+title!("Total charge")
 end
 
 # ╔═╡ b90b15df-cf24-45f7-81a9-38598ca93fa2
@@ -560,6 +602,12 @@ end
 # ╠═bac91759-91d2-44aa-ad6c-7281a4f4d8be
 # ╟─967e407f-9919-4497-822e-a1f428c1e61f
 # ╠═1021f5b4-fb1a-48ea-a560-3488697ec045
+# ╠═1b401135-decc-4ca3-85ae-139a55c9ad64
+# ╠═8889f58d-fb86-4b55-a36e-d6a59ac94aa1
+# ╠═27be6cae-4c5d-4f0e-bb0e-259adb4ade59
+# ╠═e767fdda-bc58-423d-ab32-3dc64f80f681
+# ╠═f6329740-963a-41b7-8a3a-d08ead791aba
+# ╠═a0ab96ff-d512-436a-9510-4c9eb61aecf0
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═ac4670b5-a160-4207-8842-c029f38d4470
 # ╠═b90b15df-cf24-45f7-81a9-38598ca93fa2
