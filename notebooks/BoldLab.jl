@@ -312,6 +312,31 @@ begin
 	plot(size=(750,750), psxyz, xysp, xzp1,yzp1, layout=(2,2))
 end
 
+# ╔═╡ 3c22d436-e9b3-45a1-a87d-2d2b08580561
+md"""
+# Dark analysis
+"""
+
+# ╔═╡ 38080120-e90e-4d09-8328-e54e9dd7e9ff
+md"""
+## Mean of darks
+"""
+
+# ╔═╡ 69c529a7-7582-4830-9432-ff6e117ac0b6
+md"""
+Histograms of individual darks
+"""
+
+# ╔═╡ 0988bac4-9faa-40aa-ba73-e2538ad3b6e3
+md"""
+Histograms of the darks-mean_dark
+"""
+
+# ╔═╡ f07f9cf5-39e3-4464-98fd-ec3c7f58e235
+md"""
+## Stability of darks
+"""
+
 # ╔═╡ a021d53f-c408-49d6-bb3c-6f8758c5e183
 md"""
 # Single point
@@ -331,7 +356,7 @@ md"""
 # ╔═╡ 34c9c12c-2f39-4d4c-bc99-74b93304d724
 begin
 	nfim=lbl.BoldLab.get_nfimage(runp,pnt)
-	heatmap(nfim)
+	pp0=heatmap(nfim)
 end
 
 # ╔═╡ 49d52be1-0803-49f7-8a67-6e46f847aa83
@@ -342,8 +367,11 @@ md"""
 # ╔═╡ 9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
 begin
 img_edge,ROI=lbl.BoldLab.Image_edge(nfim)
-heatmap(img_edge)
+pp1=heatmap(img_edge)
 end
+
+# ╔═╡ dfeb71a9-d39e-4ac7-a3b2-fc954e0c4860
+plot(pp0,pp1,size=(1000,400))
 
 # ╔═╡ 71eab91d-df5c-405f-b8af-cea1de77a7c5
 md"""
@@ -456,9 +484,12 @@ md"""
 """
 
 # ╔═╡ 27be6cae-4c5d-4f0e-bb0e-259adb4ade59
+# ╠═╡ disabled = true
+#=╠═╡
 md"""
 ## Total charge in each filter
 """
+  ╠═╡ =#
 
 # ╔═╡ f6329740-963a-41b7-8a3a-d08ead791aba
 md"""
@@ -510,6 +541,8 @@ plot(p0,p1,size=(1000,500))
 end
 
 # ╔═╡ 8889f58d-fb86-4b55-a36e-d6a59ac94aa1
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 plots0=[]
 plots1=[]
@@ -523,21 +556,86 @@ for pnt in pnts
 	push!(plots1,p1)
 end
 end
+  ╠═╡ =#
 
 # ╔═╡ e767fdda-bc58-423d-ab32-3dc64f80f681
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 plot(plots0...,size=(1000,1000))
 title!("Total charge")
 end
+  ╠═╡ =#
 
 # ╔═╡ a0ab96ff-d512-436a-9510-4c9eb61aecf0
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 plot(plots1...,size=(1000,1000))
 title!("Total charge")
 end
+  ╠═╡ =#
 
 # ╔═╡ b90b15df-cf24-45f7-81a9-38598ca93fa2
 [@test size(signal_flts(runp,pnt))==size(flts) for pnt in pnts]
+
+# ╔═╡ 4b175426-4d2a-4e23-bdc2-32ca92be3bcc
+function dark_mean(runp,darkfolder::String="Dark")
+	flts=lbl.BoldLab.flt_names(runp)
+	drk0=lbl.BoldLab.get_dark(runp,flts[1])
+	sum=zero(drk0)
+	for flt in flts
+		sum+=lbl.BoldLab.get_dark(runp,flt,darkfolder)
+	end
+	sum/size(flts)[1]
+end
+		
+	
+
+# ╔═╡ 06885865-c1bf-46a0-89eb-63e73f62fef5
+begin
+drkm=dark_mean(runp)
+drkmheat=heatmap(drkm)
+drkmhist=stephist(vec(drkm),bins=:1000,yaxis=:log)
+plot(drkmheat,drkmhist,size=(1000,400))
+end
+
+# ╔═╡ 40f3dbff-47ed-434f-b3a3-7f98d9f1d7e7
+begin
+drkhists0=[]
+drkhists1=[]
+drkms=[]
+drkstds=[]
+for flt in flts
+	drk=lbl.BoldLab.get_dark(runp,flt)
+	drkms=push!(drkms,mean(drk))
+	drkstds=push!(drkstds,std(drk))
+	drkhist0=stephist(vec(drk),bins=:1000,yaxis=:log,title=flt)
+	push!(drkhists0,drkhist0)
+	drkhist1=stephist(vec(drk-drkm),bins=:1000,yaxis=:log,title=flt)
+	push!(drkhists1,drkhist1)
+end
+end
+
+# ╔═╡ 59978ac0-b955-437a-9378-54944119898b
+begin
+plot(drkhists0...,size=(1000,1000))
+end
+
+# ╔═╡ 510d5320-0e3f-4fd0-a096-4b25ffca84a5
+begin
+plot(drkhists1...,size=(1000,1000))
+xlims!(-200,200)
+end
+
+# ╔═╡ 95b7485e-3b8e-469f-8697-55b43847f663
+begin
+	drkmsp=plot(drkms)
+	scatter!(drkms)
+	drkstdsp=plot(drkstds)
+	scatter!(drkstds)
+	plot(drkmsp,drkstdsp)
+end
 
 # ╔═╡ Cell order:
 # ╠═80a4e1cc-4d59-4c8a-9d65-1fe0d2d77bf2
@@ -578,12 +676,23 @@ end
 # ╟─b26174ef-ebb4-4fe3-a93d-d308d49488aa
 # ╠═54faa211-0796-4899-b56a-90d0ea73ce4a
 # ╠═b0bf7aed-3234-44ca-ac05-023545ba0987
+# ╠═3c22d436-e9b3-45a1-a87d-2d2b08580561
+# ╠═38080120-e90e-4d09-8328-e54e9dd7e9ff
+# ╠═06885865-c1bf-46a0-89eb-63e73f62fef5
+# ╠═40f3dbff-47ed-434f-b3a3-7f98d9f1d7e7
+# ╟─69c529a7-7582-4830-9432-ff6e117ac0b6
+# ╠═59978ac0-b955-437a-9378-54944119898b
+# ╟─0988bac4-9faa-40aa-ba73-e2538ad3b6e3
+# ╠═510d5320-0e3f-4fd0-a096-4b25ffca84a5
+# ╠═f07f9cf5-39e3-4464-98fd-ec3c7f58e235
+# ╠═95b7485e-3b8e-469f-8697-55b43847f663
 # ╠═a021d53f-c408-49d6-bb3c-6f8758c5e183
 # ╟─4dd6f397-0cd3-4c48-a8a2-20984418fb6f
 # ╟─f3669d36-cfd5-40b7-a09e-d73e8159b031
 # ╠═34c9c12c-2f39-4d4c-bc99-74b93304d724
 # ╟─49d52be1-0803-49f7-8a67-6e46f847aa83
 # ╠═9084f5bc-6b3a-412a-8d90-0dbf4df74ee3
+# ╠═dfeb71a9-d39e-4ac7-a3b2-fc954e0c4860
 # ╟─71eab91d-df5c-405f-b8af-cea1de77a7c5
 # ╟─966c7a16-ef71-49ff-a16a-9d2a9c22731e
 # ╟─c36851fc-1bd2-4e5d-baad-d97555642850
@@ -614,3 +723,4 @@ end
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b45e7a24-4906-40ac-8468-6d40e10663b8
 # ╠═a8739f1f-6cd9-4be4-ae17-037fa3fc048f
+# ╠═4b175426-4d2a-4e23-bdc2-32ca92be3bcc
