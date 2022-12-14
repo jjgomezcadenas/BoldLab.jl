@@ -384,6 +384,17 @@ begin
 	md""" Select filter : $(@bind flt Select(flts))"""
 end
 
+# ╔═╡ ca0de783-a1d4-4000-a59c-f57a05d6a036
+begin
+drkafms=[]
+drkafstds=[]
+for flt in flts
+	drk=lbl.BoldLab.get_dark(runp,flt,"Dark_after")
+	drkafms=push!(drkafms,mean(drk))
+	drkafstds=push!(drkafstds,std(drk))
+end
+end
+
 # ╔═╡ c36851fc-1bd2-4e5d-baad-d97555642850
 md"""
 ### Dark
@@ -630,10 +641,16 @@ end
 
 # ╔═╡ 95b7485e-3b8e-469f-8697-55b43847f663
 begin
-	drkmsp=plot(drkms)
-	scatter!(drkms)
-	drkstdsp=plot(drkstds)
-	scatter!(drkstds)
+	drkmsp=plot(drkms,label="Dark before")
+	scatter!(drkms,label="")
+	plot!(drkafms,label="Dark after")
+	scatter!(drkafms,label="")
+	
+	drkstdsp=plot(drkstds,label="Dark before")
+	scatter!(drkstds,label="")
+	plot!(drkafstds,label="Dark before")
+	scatter!(drkafstds,label="")
+	
 	plot(drkmsp,drkstdsp)
 end
 
@@ -686,6 +703,7 @@ end
 # ╠═38080120-e90e-4d09-8328-e54e9dd7e9ff
 # ╠═06885865-c1bf-46a0-89eb-63e73f62fef5
 # ╠═40f3dbff-47ed-434f-b3a3-7f98d9f1d7e7
+# ╠═ca0de783-a1d4-4000-a59c-f57a05d6a036
 # ╟─69c529a7-7582-4830-9432-ff6e117ac0b6
 # ╠═59978ac0-b955-437a-9378-54944119898b
 # ╟─0988bac4-9faa-40aa-ba73-e2538ad3b6e3
