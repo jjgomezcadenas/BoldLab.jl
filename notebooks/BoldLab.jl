@@ -637,6 +637,12 @@ begin
 	plot(drkmsp,drkstdsp)
 end
 
+# ╔═╡ 18aac698-2fe7-4434-86ed-eee1bceb16e8
+@test typeof(dark_mean(runp))==Matrix{Float64}
+
+# ╔═╡ f78784d2-4fe5-4dbc-80a7-33d44718c5a7
+@test 1500<mean(dark_mean(runp))<1700
+
 # ╔═╡ Cell order:
 # ╠═80a4e1cc-4d59-4c8a-9d65-1fe0d2d77bf2
 # ╠═23b4e644-8331-4aa6-8369-47ce3ff0e143
@@ -720,6 +726,8 @@ end
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═ac4670b5-a160-4207-8842-c029f38d4470
 # ╠═b90b15df-cf24-45f7-81a9-38598ca93fa2
+# ╠═18aac698-2fe7-4434-86ed-eee1bceb16e8
+# ╠═f78784d2-4fe5-4dbc-80a7-33d44718c5a7
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
 # ╠═b45e7a24-4906-40ac-8468-6d40e10663b8
 # ╠═a8739f1f-6cd9-4be4-ae17-037fa3fc048f
