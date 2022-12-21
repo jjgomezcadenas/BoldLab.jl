@@ -616,6 +616,42 @@ scatter!(xfnm,s0./wfnm)
 plot(p0,p1,size=(1000,500))
 end
 
+# ╔═╡ 8889f58d-fb86-4b55-a36e-d6a59ac94aa1
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+plots0=[]
+plots1=[]
+for pnt in pnts
+	s=signal_flts(runp,pnt)
+	p0=plot(xfnm,s,xlabel="wavelength (nm)")
+	scatter!(xfnm,s)
+	push!(plots0,p0)
+	p1=plot(xfnm,s./wfnm,xlabel="wavelength (nm)")
+	scatter!(xfnm,s./wfnm)
+	push!(plots1,p1)
+end
+end
+  ╠═╡ =#
+
+# ╔═╡ e767fdda-bc58-423d-ab32-3dc64f80f681
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+plot(plots0...,size=(1000,1000))
+title!("Total charge")
+end
+  ╠═╡ =#
+
+# ╔═╡ a0ab96ff-d512-436a-9510-4c9eb61aecf0
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+plot(plots1...,size=(1000,1000))
+title!("Total charge")
+end
+  ╠═╡ =#
+
 # ╔═╡ b90b15df-cf24-45f7-81a9-38598ca93fa2
 [@test size(signal_flts(runp,pnt))==size(flts) for pnt in pnts]
 
