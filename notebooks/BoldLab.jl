@@ -617,8 +617,6 @@ plot(p0,p1,size=(1000,500))
 end
 
 # ╔═╡ 8889f58d-fb86-4b55-a36e-d6a59ac94aa1
-# ╠═╡ disabled = true
-#=╠═╡
 begin
 plots0=[]
 plots1=[]
@@ -632,25 +630,18 @@ for pnt in pnts
 	push!(plots1,p1)
 end
 end
-  ╠═╡ =#
 
 # ╔═╡ e767fdda-bc58-423d-ab32-3dc64f80f681
-# ╠═╡ disabled = true
-#=╠═╡
 begin
 plot(plots0...,size=(1000,1000))
 title!("Total charge")
 end
-  ╠═╡ =#
 
 # ╔═╡ a0ab96ff-d512-436a-9510-4c9eb61aecf0
-# ╠═╡ disabled = true
-#=╠═╡
 begin
 plot(plots1...,size=(1000,1000))
 title!("Total charge")
 end
-  ╠═╡ =#
 
 # ╔═╡ b90b15df-cf24-45f7-81a9-38598ca93fa2
 [@test size(signal_flts(runp,pnt))==size(flts) for pnt in pnts]
@@ -807,7 +798,10 @@ end
 # ╟─967e407f-9919-4497-822e-a1f428c1e61f
 # ╠═1021f5b4-fb1a-48ea-a560-3488697ec045
 # ╠═1b401135-decc-4ca3-85ae-139a55c9ad64
+# ╠═8889f58d-fb86-4b55-a36e-d6a59ac94aa1
+# ╠═e767fdda-bc58-423d-ab32-3dc64f80f681
 # ╠═f6329740-963a-41b7-8a3a-d08ead791aba
+# ╠═a0ab96ff-d512-436a-9510-4c9eb61aecf0
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═ac4670b5-a160-4207-8842-c029f38d4470
 # ╠═b90b15df-cf24-45f7-81a9-38598ca93fa2
