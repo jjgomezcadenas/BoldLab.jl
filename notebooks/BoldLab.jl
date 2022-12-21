@@ -337,6 +337,21 @@ md"""
 ## Stability of darks
 """
 
+# ╔═╡ 958683c3-c735-4515-8aa7-02d8ff2dfd7e
+md"""
+## Equalization of darks
+"""
+
+# ╔═╡ 89b81f6b-5e2f-47f6-8edb-620027dee605
+md"""
+Due to the drift on the images, the dark cannot be substracted directly to the images. Before doing that it is necessary to equalize all the images.  
+"""
+
+# ╔═╡ 8df41bc2-506b-4660-86ea-44d361726a17
+md"""
+To equalize the images we transport the maximum of the histogram (the maximum of the fitting) to zero counts.
+"""
+
 # ╔═╡ a021d53f-c408-49d6-bb3c-6f8758c5e183
 md"""
 # Single point
@@ -469,21 +484,6 @@ md"""
 - Right: Histogram of image-dark
 """
 
-# ╔═╡ d64ff72f-7e99-48d8-8dcc-3c69c5f496b3
-begin
-	im_drk=im-drk
-	vlsim_drk=[vl for vl in vec(im_drk)]
-	histim_drk=stephist(vlsim_drk,bins=:100,yaxis=:log)
-	heatim_drk=heatmap(im_drk)
-	plot(heatim_drk,histim_drk,size=(1000,400))
-end
-
-# ╔═╡ bac91759-91d2-44aa-ad6c-7281a4f4d8be
-begin
-	sim_drk=[im_drk[i,j] for (i,j) in ROI]
-	histim_drkROI=stephist(sim_drk,bins=:100,yaxis=:log,size=(1000,400))
-end
-
 # ╔═╡ 967e407f-9919-4497-822e-a1f428c1e61f
 md"""
 ## Spectrum
@@ -493,14 +493,6 @@ md"""
 md"""
 # Spectrum for all points
 """
-
-# ╔═╡ 27be6cae-4c5d-4f0e-bb0e-259adb4ade59
-# ╠═╡ disabled = true
-#=╠═╡
-md"""
-## Total charge in each filter
-"""
-  ╠═╡ =#
 
 # ╔═╡ f6329740-963a-41b7-8a3a-d08ead791aba
 md"""
@@ -517,18 +509,90 @@ md"""
 # Functions
 """
 
+# ╔═╡ 0df52e08-30c2-4467-8dd5-bc4de8dd228a
+function offset(img)	
+	model(x,p)=p[1]*x.^2+p[2]*x.+p[3]
+	histo=fit(Histogram,vec(img),nbins=:300)
+	maxbin=maximum(histo.weights)
+	ind=findall(x->x==maxbin,histo.weights)[1]
+	bins=diff(histo.edges[1])/2 .+ histo.edges[1][1:end-1]
+	maxloc=bins[ind]
+	aboutmax=filter(val->maxloc-20<val<maxloc+20,vec(img))
+	histo2=fit(Histogram,aboutmax,nbins=:40)
+	bins2=diff(histo2.edges[1])/2 .+ histo2.edges[1][1:end-1]
+	fitting=curve_fit(model,bins2,Float64.(histo2.weights),[0.0,0.0,0.0])
+	xs=maxloc-20:0.1:maxloc+20
+	yfit=model(xs,fitting.param)
+	maxfit=maximum(yfit)
+	ind=findall(x->x==maxfit,yfit)[1]
+	p=histogram(aboutmax,bins=:40,label="Data")
+	plot!(xs,yfit,label="Parabolic fit")
+	xs[ind],p
+end
+
+# ╔═╡ 884a8943-daac-49a7-a921-e6b490c9b649
+begin
+	drkex=lbl.BoldLab.get_dark(runp,flts[1])
+	offset(drkex)[2]
+end
+
+# ╔═╡ d64ff72f-7e99-48d8-8dcc-3c69c5f496b3
+begin
+	im_drk=(im.-offset(im)[1])-(drk.-offset(drk)[1])
+	vlsim_drk=[vl for vl in vec(im_drk)]
+	histim_drk=stephist(vlsim_drk,bins=:100,yaxis=:log)
+	heatim_drk=heatmap(im_drk)
+	plot(heatim_drk,histim_drk,size=(1000,400))
+end
+
+# ╔═╡ bac91759-91d2-44aa-ad6c-7281a4f4d8be
+begin
+	sim_drk=[im_drk[i,j] for (i,j) in ROI]
+	histim_drkROI=stephist(sim_drk,bins=:100,yaxis=:log,size=(1000,400))
+end
+
+# ╔═╡ c96d0c82-bf5e-4887-94f7-2e11ff291012
+function equalize(img)
+	img.-offset(img)[1]
+end
+
+# ╔═╡ badd137b-6fd4-47b4-8b87-631d0b209a25
+begin
+drkeqms=[]
+drkafeqms=[]
+for flt in flts
+	drk=lbl.BoldLab.get_dark(runp,flt)
+	drkeqms=push!(drkeqms,mean(equalize(drk)))
+end
+for flt in flts
+	drk=lbl.BoldLab.get_dark(runp,flt,"Dark_after")
+	drkafeqms=push!(drkafeqms,mean(equalize(drk)))
+end
+end
+
+# ╔═╡ 5e90f0fc-ba7e-415a-9795-1c97b7ab1a3c
+begin
+	drkeqmsp=plot(drkeqms,label="Dark before")
+	scatter!(drkeqms,label="")
+	plot!(drkafeqms,label="Dark before")
+	scatter!(drkafeqms,label="")
+	
+end
+
 # ╔═╡ b45e7a24-4906-40ac-8468-6d40e10663b8
 function sum_signal(runp,pnt,flt)
 	drk=lbl.BoldLab.get_dark(runp,flt)
+	drk0=equalize(drk)
 	im=lbl.BoldLab.get_image(runp,pnt,flt)
-	im_drk=im-drk
+	im0=equalize(im)
+	im_drk=im0-drk0
 	img_edge,ROI=lbl.BoldLab.Image_edge(nfim)
 	s=[im_drk[i,j] for (i,j) in ROI]
 	sumation=sum(s)
 end
 
 # ╔═╡ ac4670b5-a160-4207-8842-c029f38d4470
-@test typeof(sum_signal(runp,pnts[1],flts[1]))==Int64
+@test typeof(sum_signal(runp,pnts[1],flts[1]))==Float64
 
 # ╔═╡ a8739f1f-6cd9-4be4-ae17-037fa3fc048f
 function signal_flts(runp,pnt)
@@ -544,48 +608,13 @@ end
 
 # ╔═╡ 1021f5b4-fb1a-48ea-a560-3488697ec045
 begin
-p0=plot(xfnm,signal_flts(runp,pnts[1]),title="Total charge",xlabel="wavelength (nm)")
-scatter!(xfnm,signal_flts(runp,pnts[1]))
-p1=plot(xfnm,signal_flts(runp,pnts[1])./wfnm,title="Total charge/filter width",xlabel="wavelength (nm)")
-scatter!(xfnm,signal_flts(runp,pnts[1])./wfnm)
+s0=signal_flts(runp,pnt)
+p0=plot(xfnm,s0,title="Total charge",xlabel="wavelength (nm)")
+scatter!(xfnm,s0)
+p1=plot(xfnm,s0./wfnm,title="Total charge/filter width",xlabel="wavelength (nm)")
+scatter!(xfnm,s0./wfnm)
 plot(p0,p1,size=(1000,500))
 end
-
-# ╔═╡ 8889f58d-fb86-4b55-a36e-d6a59ac94aa1
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-plots0=[]
-plots1=[]
-for pnt in pnts
-	s=signal_flts(runp,pnt)
-	p0=plot(xfnm,s,xlabel="wavelength (nm)")
-	scatter!(xfnm,s)
-	push!(plots0,p0)
-	p1=plot(xfnm,s./wfnm,xlabel="wavelength (nm)")
-	scatter!(xfnm,s./wfnm)
-	push!(plots1,p1)
-end
-end
-  ╠═╡ =#
-
-# ╔═╡ e767fdda-bc58-423d-ab32-3dc64f80f681
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-plot(plots0...,size=(1000,1000))
-title!("Total charge")
-end
-  ╠═╡ =#
-
-# ╔═╡ a0ab96ff-d512-436a-9510-4c9eb61aecf0
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-plot(plots1...,size=(1000,1000))
-title!("Total charge")
-end
-  ╠═╡ =#
 
 # ╔═╡ b90b15df-cf24-45f7-81a9-38598ca93fa2
 [@test size(signal_flts(runp,pnt))==size(flts) for pnt in pnts]
@@ -648,7 +677,7 @@ begin
 	
 	drkstdsp=plot(drkstds,label="Dark before")
 	scatter!(drkstds,label="")
-	plot!(drkafstds,label="Dark before")
+	plot!(drkafstds,label="Dark after")
 	scatter!(drkafstds,label="")
 	
 	plot(drkmsp,drkstdsp)
@@ -710,6 +739,12 @@ end
 # ╠═510d5320-0e3f-4fd0-a096-4b25ffca84a5
 # ╠═f07f9cf5-39e3-4464-98fd-ec3c7f58e235
 # ╠═95b7485e-3b8e-469f-8697-55b43847f663
+# ╠═958683c3-c735-4515-8aa7-02d8ff2dfd7e
+# ╠═89b81f6b-5e2f-47f6-8edb-620027dee605
+# ╠═884a8943-daac-49a7-a921-e6b490c9b649
+# ╠═8df41bc2-506b-4660-86ea-44d361726a17
+# ╠═badd137b-6fd4-47b4-8b87-631d0b209a25
+# ╠═5e90f0fc-ba7e-415a-9795-1c97b7ab1a3c
 # ╠═a021d53f-c408-49d6-bb3c-6f8758c5e183
 # ╟─4dd6f397-0cd3-4c48-a8a2-20984418fb6f
 # ╟─f3669d36-cfd5-40b7-a09e-d73e8159b031
@@ -736,17 +771,15 @@ end
 # ╟─967e407f-9919-4497-822e-a1f428c1e61f
 # ╠═1021f5b4-fb1a-48ea-a560-3488697ec045
 # ╠═1b401135-decc-4ca3-85ae-139a55c9ad64
-# ╠═8889f58d-fb86-4b55-a36e-d6a59ac94aa1
-# ╠═27be6cae-4c5d-4f0e-bb0e-259adb4ade59
-# ╠═e767fdda-bc58-423d-ab32-3dc64f80f681
 # ╠═f6329740-963a-41b7-8a3a-d08ead791aba
-# ╠═a0ab96ff-d512-436a-9510-4c9eb61aecf0
 # ╠═853b8b2e-66ed-4723-8884-213e5fd4a0e7
 # ╠═ac4670b5-a160-4207-8842-c029f38d4470
 # ╠═b90b15df-cf24-45f7-81a9-38598ca93fa2
 # ╠═18aac698-2fe7-4434-86ed-eee1bceb16e8
 # ╠═f78784d2-4fe5-4dbc-80a7-33d44718c5a7
 # ╠═20770d2f-ca8f-4fb3-b11d-d00f93e3a0cc
+# ╠═0df52e08-30c2-4467-8dd5-bc4de8dd228a
+# ╠═c96d0c82-bf5e-4887-94f7-2e11ff291012
 # ╠═b45e7a24-4906-40ac-8468-6d40e10663b8
 # ╠═a8739f1f-6cd9-4be4-ae17-037fa3fc048f
 # ╠═4b175426-4d2a-4e23-bdc2-32ca92be3bcc
