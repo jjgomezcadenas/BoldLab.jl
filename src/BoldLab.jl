@@ -1,5 +1,5 @@
 module BoldLab
 print_greeting() = print("Hello, world!")
 include("dffunctions.jl")
-include("histos.jl")
+include("functions.jl")
 end
