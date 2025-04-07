@@ -4,10 +4,22 @@
 # (e.g, molecular cross sections, filters), and describe them when
 # relevant as functions.
 # """
+
+#module dffunctions
+#using Revise
+#export spG, enG, enG2
+#export load_df_from_csv, dftof, qpdf, ftopdf
+#export FMolecule, fm_from_csv
 using DataFrames
 using CSV
 using Interpolations
 using QuadGK
+
+
+
+
+
+#-----------
 
 """
 	CsvG
@@ -45,7 +57,6 @@ struct Gf          # general function
 	pdf::Any
 end
 
-
 """
 	load_df_from_csv(path::String, fname::String, csvg::CsvG)
 
@@ -77,7 +88,7 @@ Return an interpolated function, valid in range wl.
 - `scale::Real`: value to re-scale the data 
 """
 function dftof(wl, df::DataFrame, cname::String, overflow::Real=0.0, scale::Real=1.0)
-    li = LinearInterpolation(wl, df[!,cname])
+    li = LinearInterpolation(wl, df[!,cname], extrapolation_bc=Line())
 	return gfpdf_(li, wl[1], wl[end], overflow, scale)
 end
 
@@ -128,23 +139,7 @@ function ftopdf(wl, f)
 end
 
 
-
-function create_dir!(dir)
-	if isdir(dir) == false
-		mkdir(dir)
-	end
-end
-
-
-function output_dirs!(odir, sexp)
-	create_dir!(joinpath(odir, sexp))
-	csvdir = joinpath(odir, sexp,"csv")
-	pngdir = joinpath(odir, sexp, "png")
-	create_dir!(csvdir)
-	create_dir!(pngdir)
-	csvdir, pngdir
-end
-
+#end #module
 
 
 
