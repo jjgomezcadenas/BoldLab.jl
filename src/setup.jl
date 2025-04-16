@@ -1,3 +1,11 @@
+"""
+A setup includes:
+- A fluorescent molecule
+- A laser (and the corresponding laser excitation)
+- An objective, that defines numerical aperture (NA) and Magnification (M)
+- A camera
+
+"""
 using Unitful
 using UnitfulEquivalences
 using PhysicalConstants.CODATA2018
@@ -13,9 +21,11 @@ import Unitful:
 	mW, W,
     A, N, mol, mmol, V, L, M
 
+barn = 1E-24 * cm^2
 
-"""
-A struct representing a Fluorescence Molecule
+""" A struct representing a Fluorescence Molecule
+- the interpolated pdf and xs functions take a float number pdf(lambda), and xs(lambda)
+and return the pdf of the emission or the cross section (in barn)
 """
 struct FMolecule{T}
     QY::Float64  # Quantum Yield
@@ -26,6 +36,30 @@ struct FMolecule{T}
     
 end
 
+
+"""A fluorescent molecule with fotobleaching and Dark States
+- pdf and xs of the FBMolecule take units (lambda in nm)
+"""
+struct FBMolecule{T}
+	fm::FMolecule
+    name::String 
+    QY::Float64
+    pdf::T       # Interpolated emission PDF function
+    xs::T        # Interpolated absorption cross section function
+    M::Float64   # Average number of excitation/de-excitation cycles before photobleaching
+    Darks::Tuple{Float64, typeof(1.0s)}  # excitation to dark and time in dark.
+
+    function FBMolecule(fm::FMolecule, name, M, Darks)
+        # Define a helper function to modify the interpolation functions.
+        gxs(f) = (λnm -> f(λnm/nm))
+        # Explicitly specify the type parameter T as the type of gxs(fm.pdf)
+        return new{typeof(gxs(fm.pdf))}(fm, name, fm.QY, gxs(fm.pdf), gxs(fm.xs), 
+										M, Darks)
+    end
+end
+
+
+cross_section(fm::FBMolecule, λ::Unitful.Length) = fm.xs(λ) * fm.QY * barn
 
 """
 Creates the FM structs from the DF. Assumes that the DF columns are:
@@ -79,6 +113,66 @@ end
 
 
 """
+	struct Laser
+
+Simple representation of a laser
+
+# Fields
+- `λ::typeof(1.0nm)`  : Laser wavelength
+- `P::typeof(1.0mW)`  : Power
+
+"""
+struct Laser
+	λ::typeof(1.0nm)
+	P::typeof(1.0mW)
+end
+
+
+"""
+Represents the Laser excitation 
+"""
+struct LaserExcitation
+    I::typeof(1.0Hz*cm^-2)  # Intensity at the center of the beam 
+    λ::Unitful.Length       # Wavelength 
+    sigma::Unitful.Length   # Waist of the beam (microns)
+    center::Tuple{Unitful.Length,Unitful.Length} # Center of the beam ([x0, y0]
+
+	function LaserExcitation(laser::Laser, sigma::Unitful.Length, 
+							 center::Tuple{Unitful.Length,Unitful.Length} )
+		
+		I = photon_density(laser.λ, laser.P, sigma, sigma)
+		new(I, laser.λ, sigma, center)
+	end
+end
+
+
+"""Computes the intensity at a given (x, y) (cm⁻² s⁻¹) """
+function intensity(ex::LaserExcitation, x::Unitful.Length, y::Unitful.Length)
+    ex.I *
+         exp(-((x - ex.center[1]) / (sqrt(2)*ex.sigma))^2) *
+         exp(-((y - ex.center[2]) / (sqrt(2)*ex.sigma))^2)
+end
+
+"""
+	struct Objective
+
+Simple representation of a microscope objective
+
+# Fields
+- `name::String` : identifies the objective
+- `NA::Float64`  : Numerical aperture
+- `M::Float64`   : Magnification
+
+"""
+struct Objective
+    name::String
+    NA::Float64
+    M::Float64
+end
+
+
+
+"""
 	struct Fov
 
 Represent a field of view
@@ -101,40 +195,6 @@ struct Fov
 		v = a * z
 		new(d,z,a,v)
 	end
-end
-
-
-"""
-	struct Laser
-
-Simple representation of a laser
-
-# Fields
-- `λ::typeof(1.0nm)`  : Laser wavelength
-- `P::typeof(1.0mW)`  : Power
-
-"""
-struct Laser
-	λ::typeof(1.0nm)
-	P::typeof(1.0mW)
-end
-
-
-"""
-	struct Objective
-
-Simple representation of a microscope objective
-
-# Fields
-- `name::String` : identifies the objective
-- `NA::Float64`  : Numerical aperture
-- `M::Float64`   : Magnification
-
-"""
-struct Objective
-    name::String
-    NA::Float64
-    M::Float64
 end
 
 
@@ -168,38 +228,6 @@ struct GaussianLaser
 	end
 end
 
-
-"""
-Represents the Laser excitation 
-"""
-struct Excitation
-    I::Float64                    # Intensity at the center of the beam ( nphot cm⁻² s⁻¹)
-    wl::Float64                   # Wavelength (nm)
-    sigma::Float64                # Waist of the beam (microns)
-    center::Tuple{Float64,Float64}  # Center of the beam ([x0, y0] in microns)
-end
-
-
-
-"""Computes the intensity at a given (x, y) (cm⁻² s⁻¹) """
-function intensity(ex::Excitation, x::Float64, y::Float64)
-    return ex.I *
-           exp(-((x - ex.center[1]) / (sqrt(2)*ex.sigma))^2) *
-           exp(-((y - ex.center[2]) / (sqrt(2)*ex.sigma))^2)
-end
-
-
-"""Computes the photon energy in eV"""
-function photon_energy(ex::Excitation)
-    return 1239.8 / ex.wl
-end
-
-
-"""Computes the total power in mW"""
-function total_power(ex::Excitation)
-    # Note: ex.sigma is in microns, so we convert it (σ/1e4) to cm
-    return ex.I * 2 * π * (ex.sigma / 1e4)^2 * photon_energy(ex) * 1.6e-19 * 1e+3
-end
 
 #FUNCTIONS
 
