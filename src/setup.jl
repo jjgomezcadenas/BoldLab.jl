@@ -1,11 +1,11 @@
-"""
-A setup includes:
-- A fluorescent molecule
-- A laser (and the corresponding laser excitation)
-- An objective, that defines numerical aperture (NA) and Magnification (M)
-- A camera
+#-------
+# A setup includes:
+# - A fluorescent molecule
+# - A laser (and the corresponding laser excitation)
+# - An objective, that defines numerical aperture (NA) and Magnification (M)
+# - A camera
+#-------------
 
-"""
 using Unitful
 using UnitfulEquivalences
 using PhysicalConstants.CODATA2018
@@ -128,6 +128,12 @@ struct Laser
 end
 
 
+struct BandFilter
+	λmin::Unitful.Length
+	λmax::Unitful.Length
+end
+
+
 """
 Represents the Laser excitation 
 """
@@ -153,6 +159,70 @@ function intensity(ex::LaserExcitation, x::Unitful.Length, y::Unitful.Length)
          exp(-((y - ex.center[2]) / (sqrt(2)*ex.sigma))^2)
 end
 
+
+"""A structure representing a CMOS"""
+struct CMOS
+	name::String
+	pixelsize::Unitful.Length  # pixel size is pixelsize x pixelsize
+	npixel::Integer            # pixel array is npixel x npixel 
+    readout_noise::Float64     # in electrons/pixel
+    dark_current::typeof(1.0Hz)      # in electrons/pixel/second
+ 	binning::Integer           # binning size
+	qe::Function               # as a function of λ
+	sensorsize::Unitful.Length
+	binPixelsize::Unitful.Length 
+	binNpixel::Integer
+
+	function CMOS(name, pixelsize, npixel, readout_noise, dark_current, binning, qe)
+		sensorsize = pixelsize * npixel
+    	binPixelsize = pixelsize * binning
+		biNpixel = npixel ÷ binning
+		new(name, pixelsize, npixel, readout_noise, dark_current, binning, qe,
+		   sensorsize, binPixelsize, biNpixel)
+	end
+end
+
+
+"""efficiency of Orgca Flash4 as a function of lambda"""
+function oflash4_eff(λ::Unitful.Length)
+	l = λ/nm
+		if l < 400.0 || l > 900.0
+			return 0.
+		else
+			wl = 400.:50.:900.
+			ϵ = [0.4,0.7,0.78,0.82,0.82,0.8,0.72,0.62,0.5,0.37,
+			  0.24]
+			e = CubicSplineInterpolation(wl, ϵ)
+			return e(l)
+		end
+end
+
+"""number of photoelectrons"""
+nphe(cam::CMOS, λ, photons) = cam.qe(λ) * photons
+	
+	#  noise (https://camera.hamamatsu.com/eu/en/learn/technical_information/camera_articles/qcmos_vs_emccd.html)
+
+    
+"""CMOS noise
+noise = sqrt(σ1^2 + σ2^2 + σ3^2)
+where:
+σ1 = shot noise => sqrt(N_phe)
+σ2 = readout noise => readout_noise/pixel  x pixel 
+σ3 = DC noise => DC_rate x t_exposition/pixel_area  x pixel x pixel  
+"""
+function noise(cam::CMOS, λ, photons, texp)
+    #println("nphe = $(nphe(cam, λ, photons))")
+    #println("noise1 = $((cam.readout_noise * cam.binning)^2)")
+    #println("noise2 = $(cam.dark_current * cam.binning^2)")
+    #println("texp = $(texp)")
+    return sqrt.(
+        nphe(cam, λ, photons) .+
+        cam.readout_noise * cam.binning .+
+        cam.dark_current * texp/(Hz*s) * cam.binning * cam.binning # area!
+    )
+end
+
+
 """
 	struct Objective
 
@@ -169,7 +239,6 @@ struct Objective
     NA::Float64
     M::Float64
 end
-
 
 
 """
