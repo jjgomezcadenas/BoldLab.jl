@@ -11,7 +11,7 @@ const ERROR = 40
 
 # Global variable for the current log level.
 # You can set it to one of the constants above.
-global_log_level = INFO
+global_log_level = ERROR
 
 "Set the global log level."
 function set_log_level(level::Int)

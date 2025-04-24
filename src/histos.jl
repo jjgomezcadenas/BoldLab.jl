@@ -1,8 +1,15 @@
+module histos
+using Revise
+using DataFrames
 using Plots
 using Statistics
 using StatsBase
 import Base.length
 # histograms
+
+export hist1d, hist2d, p1df, step_hist, in_range, get_histo1d
+
+include("util.jl")
 
 """Define an histogram"""
 struct Histo1d
@@ -12,81 +19,31 @@ struct Histo1d
 end
 
 
-"""Take an object of type Hisgoram and return a Histo1d"""
+
+"""Take an object of type Histogram and return a Histo1d"""
 get_histo1d(h::Histogram) = Histo1d(edges(h), h.weights, centers(h))
 
 
 """Returns a Histo1d struct""" 
-h1d(x::Vector{Float64}, bins::Vector{Float64}, norm=false) = get_histo1d(hist1d(x, bins, norm))
-
-
-"""Return a Histo1d struct"""
-function h1d(x::Vector{T}, nbins::Integer, xmin::T=typemin(T), xmax::T=typemax(T), norm=false) where T
-    get_histo1d(hist1d(x, nbins, xmin, xmax, norm))
-end
-
-"""plot a h1d histogram"""
-function plot_h1d(h::Histo1d, xs::String; i0=1, il=-1,
-                  markersize::Int64=3, fwl::Bool=false,
-                  label::String="", legend::Bool=false)
-
-    xg = h.centers
-    yg = h.weights
-
-    if il == -1 
-        il = length(xg)
-    end
-    p  = scatter(xg[i0:il], yg[i0:il], yerr=sqrt.(abs.(yg[i0:il])),
-                 markersize=markersize, label=label, legend=legend)
-    if fwl
-        p = plot!(p, xg[i0:il], yg[i0:il], yerr=sqrt.(abs.(yg[i0:il])), fmt=:png,
-                  linewidth=1, label=label, legend=legend)
-    end
-
-    xlabel!(xs)
-    ylabel!("frequency")
-    return p
-end
-
-"""
-    digitize(x, bins)
-
-    Return the indices of the bins to which each value in input array belongs.
-"""
-function digitize(x::Vector{<:Real}, bins::LinRange{<:Real})
-    return searchsortedlast.(Ref(bins), x)
-end
-# Notice that in this case the bins are expected to be sorted
-function digitize(x::Vector{<:Real}, bins::Vector{<:Real})
-    return searchsortedlast.(Ref(bins), x)
-end
-
-
-"""
-    hist1d(x::Vector{T}, nbins::Integer, xmin::T=typemin(T), xmax::T=typemax(T))
-    hist1d(x::Vector{T}, xs::String, nbins::Integer,
-                    xmin::T=typemin(T), xmax::T=typemax(T); datap = true, fwl=true)
-    hist1d(h::Histogram, xs::String; datap = true, markersize=3, fwl=false)
-
-return a 1d histogram and its corresponding graphics (plots)
-"""
-function hist1d(x::Vector{<:Real}, bins::Vector{<:Real}, norm=false)
+function hist1d(x::AbstractVector{T}, bins::AbstractVector{T}, norm=false) where {T<:Real} 
     h = fit(Histogram, x, bins)
     if norm
         h = StatsBase.normalize(h, mode=:density)
     end
-    return h
+    get_histo1d(h)
 end
 
 
-function hist1d(x::Vector{T}, nbins::Integer,
-                xmin::T=typemin(T), xmax::T=typemax(T), norm=false) where T
-    xx   = in_range(x, xmin, xmax)
-    bins = collect(LinRange(xmin, xmax, nbins + 1))
-    h    = hist1d(xx, bins, norm)
-    return h
+"""Return a Histo1d struct"""
+function hist1d(x::AbstractVector{T}, nbins::Integer, norm=false) where {T<:Real} 
+    h = fit(Histogram, x; nbins=nbins)
+    if norm
+        h = StatsBase.normalize(h, mode=:density)
+    end
+    get_histo1d(h)
 end
 
+    
 
 """
     edges(h::Histogram)
@@ -129,44 +86,55 @@ function hist_weights(edges::Vector{<:Real})
   return get_weights
 end
 
+
 """
-    hist1d(x::Vector{T}, xs::String, nbins::Integer,
-           xmin::T=typemin(T), xmax::T=typemin(T);
-           norm::Bool=false, datap::Bool=true,
-           markersize::Int64=3, fwl::Bool=false,
-           label::String="", legend::Bool=false) where T <: Real
 return 1D histogram and plot axes for data x and number of bins nbins.
 """
-function hist1d(x::Vector{T}, xs::String, nbins::Integer,
-                xmin::T=typemin(T), xmax::T=typemax(T);
-                norm::Bool=false, datap::Bool=true,
-                markersize::Int64=3, fwl::Bool=false,
-                label::String="", legend::Bool=false) where T <: Real
+function hist1d(x::AbstractVector{T}, nbins::Integer, xs::String;
+                norm::Bool=false, 
+                datap::Bool=true,
+                markersize::Int64=3, 
+                fwl::Bool=false,
+                label::String="", 
+                legend::Bool=false) where {T<:Real} 
 
-    h = hist1d(x, nbins, xmin, xmax, norm)
-    return h, hist1d(h, xs, datap=datap, markersize=markersize, fwl=fwl,
-                     label=label, legend=legend)
+    h = hist1d(x, nbins, norm)
+    h, plot_histogram(h, datap, markersize, fwl, label, legend)
+    
 end
 
 
 """
-    hist1d(h::Histogram, xs::String;
-           datap::Bool=true, markersize::Int64=3, fwl::Bool=false,
-           label::String="", legend::Bool=false)
-Plot 1D histogram from Histogram object and options.
+return 1D histogram and plot axes for data x and number of bins nbins.
 """
-function hist1d(h::Histogram, xs::String;
-                datap::Bool=true, markersize::Int64=3, fwl::Bool=false,
-                label::String="", legend::Bool=false)
+function hist1d(x::AbstractVector{T},  bins::AbstractVector{T}, xs::String;
+                norm::Bool=false, 
+                datap::Bool=true,
+                markersize::Int64=3, 
+                fwl::Bool=false,
+                label::String="", 
+                legend::Bool=false) where {T<:Real} 
 
-    if datap
-        xg = centers(h)
-        yg = eltype(xg).(h.weights)
+    h = hist1d(x, bins, norm)
+    h, plot_histogram(h, datap, markersize, fwl, label, legend)
+    
+end
+
+
+function plot_histogram(h::Histo1d, datap::Bool,
+                        markersize::Int64, 
+                        fwl::Bool,
+                        label::String, 
+                        legend::Bool)
+    xg = h.centers
+    yg = eltype(xg).(h.weights)
+    
+    if datap    
         p  = scatter(xg, yg, yerr=sqrt.(yg),
                      markersize=markersize, label=label, legend=legend)
         if fwl
             p = plot!(p, xg, yg, yerr=sqrt.(yg), fmt=:png,
-                      linewidth=1, label=label, legend=legend)
+                     linewidth=1, label=label, legend=legend)
         end
     else
         p = plot(h, xlabel=xs, fmt=:png, yl="frequency")
@@ -178,31 +146,21 @@ function hist1d(h::Histogram, xs::String;
 end
 
 
+
 """
-    plot2hist1d(h1::Histogram, h2::Histogram, xs::String;
-                markersize::Int64=2, norm::Bool=false)
-Plot two 1D histograms on the same axes.
+    digitize(x, bins)
+
+    Return the indices of the bins to which each value in input array belongs.
 """
-function plot2hist1d(h1::Histogram, h2::Histogram, xs::String;
-                     markersize::Int64=2, norm::Bool=false)
-
-    if norm
-        h1 = StatsBase.normalize(h1, mode=:density)
-        h2 = StatsBase.normalize(h2, mode=:density)
-    end
-
-    xg1 = centers(h1)
-    yg1 = eltype(xg1).(h1.weights)
-    xg2 = centers(h2)
-    yg2 = eltype(xg2).(h2.weights)
-
-    p1 = scatter(     xg1, yg1, yerr=sqrt.(yg1), fmt=:png, markersize=markersize)
-    p1 = scatter!(p1, xg2, yg2, yerr=sqrt.(yg2), fmt=:png, markersize=markersize)
-    xlabel!(xs)
-    ylabel!("frequency")
-
-    return p1
+function digitize(x::Vector{<:Real}, bins::LinRange{<:Real})
+    return searchsortedlast.(Ref(bins), x)
 end
+# Notice that in this case the bins are expected to be sorted
+function digitize(x::Vector{<:Real}, bins::Vector{<:Real})
+    return searchsortedlast.(Ref(bins), x)
+end
+
+
 
 
 """
@@ -286,3 +244,75 @@ function p1df(x::Vector{<:Real}, y::Vector{<:Real}, nbins::Integer;
               shape = :circle, color = :black, legend=false)
     return ndf, p1
 end
+
+
+"""
+    step_hist(data::Vector{<:Real};
+              nbins::Int=50,
+              xlim::Union{Nothing,Tuple{Float64,Float64}}=nothing,
+              logy::Bool=false,
+              xlabel::String="",
+              ylabel::String="")
+
+Plot an unfilled step‑style histogram, adding a small offset to avoid zeros on a log scale.
+
+# Keywords
+- `nbins`: Number of bins.
+- `xlim`: Optional `(min, max)` bin range.
+- `logy`: If `true`, use log10 on the y‑axis.
+- `xlabel`, `ylabel`: Axis labels.
+"""
+function step_hist(data::Vector{<:Real};
+                   nbins::Int = 50,
+                   xlim::Union{Nothing, Tuple{Float64, Float64}} = nothing,
+                   logy::Bool = false,
+                   xlabel::String = "",
+                   ylabel::String = "")
+
+    # 1. Compute histogram
+    edges = isnothing(xlim) ? nothing :
+            collect(range(xlim[1], xlim[2]; length = nbins+1))
+    h = isnothing(edges) ?
+        fit(Histogram, data; nbins=nbins) :
+        fit(Histogram, data, edges)
+
+    bin_edges = h.edges[1]   # nbins+1 edges
+    counts    = h.weights    # nbins counts
+
+    # 2. Build staircase coords
+    x_step = repeat(bin_edges, inner=2)
+    # pad counts with zeros at ends, then add +1 to every y‑value
+    y_pad  = vcat(0.0, counts, 0.0) .+ 1.0
+    y_step = repeat(y_pad, inner=2)[2:end-1]
+
+    # 3. Plot the step histogram
+    plt = plot(x_step, y_step;
+               seriestype = :step,
+               linecolor  = :black,
+               lw         = 1,
+               xlabel     = xlabel,
+               ylabel     = ylabel,
+               legend     = false)
+
+    # 4. Optional log scale
+    if logy
+        yaxis!(plt, :log10)
+    end
+
+    # 5. Draw vertical boundary lines
+    baseline = logy ? minimum(y_step) : 0.0
+
+    # Left boundary
+    e1 = bin_edges[1]
+    h1 = y_pad[2]   # first bin’s height after +1
+    plot!(plt, [e1, e1], [baseline, h1]; linecolor=:black, lw=1)
+
+    # Right boundary
+    en = bin_edges[end]
+    hn = y_pad[end-1]  # last bin’s height after +1
+    plot!(plt, [en, en], [baseline, hn]; linecolor=:black, lw=1)
+
+    return plt
+end
+
+end # module 

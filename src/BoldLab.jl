@@ -1,13 +1,16 @@
 module BoldLab
 using Revise
-#print_greeting() = print("Hello, world!")
 include("SimpleLogger.jl")
 using .SimpleLogger
 include("dffunctions.jl")
+include("util.jl")
 
 include("setup.jl")
 include("SampleGenerators.jl")
 include("GenerateData.jl")
+export to_fstr, vect_to_fstr, vect_to_list
+export find_max
+export generate_filename
 export FMolecule, FBMolecule, fm_from_csv
 export Laser, Objective, ccd, LaserExcitation, BandFilter, intensity, photon_energy, total_power
 export CMOS, oflash4_eff, nphe, noise

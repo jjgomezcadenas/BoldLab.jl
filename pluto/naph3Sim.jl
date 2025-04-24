@@ -24,7 +24,6 @@ begin
 	using CSV
 	using DataFrames
 	using Plots 
-	#using Measures
 	using Printf
 	using InteractiveUtils
 	using LsqFit
@@ -42,6 +41,8 @@ begin
 	using Unitful
 	using UnitfulEquivalences
 	using PhysicalConstants.CODATA2018
+	using NPZ
+	import Measures 
 	
 end
 
@@ -84,25 +85,15 @@ begin
 									  "naph3_abs.csv")
 end
 
+# ╔═╡ 139f39e1-176c-410a-91bc-62234b31153d
+md"""
+## Run parameters
+"""
+
 # ╔═╡ f163b606-952f-4d14-9e9c-e9d9ce8722fd
 md"""
 ## Define Setup
 """
-
-# ╔═╡ cbfd9e9c-2faa-4334-8324-dd7351e681b6
-begin
-	lsr = Laser(450nm, 1mW)
-	I = uconvert(Hz*cm^-2, photon_density(450nm, 1mW, 15*μm, 15*μm))
-	I2 = uconvert(Hz*cm^-2, photon_density(450nm, 3.115mW, 15*μm, 15*μm))
-
-	md"""
-	#### Laser: 
-	- Wavelength = $(lsr.λ)
-	- Power = $(lsr.P)
-	- Photon energy = $(photon_energy(lsr.λ))
-	- Intensity = $(I)
-	"""
-end
 
 # ╔═╡ 5ae75425-b152-4099-b2fd-d212a75cca51
 begin
@@ -155,11 +146,127 @@ begin
 	RunInfo["t_exp"] = 0.5s #time of exposition per step
 end
 
+# ╔═╡ 55d8bfdf-8d6a-4d74-89d6-862fed0d2260
+md"""
+#### Define Laser Excitation 
+"""
+
+# ╔═╡ 50569fd9-c673-4dc2-8bbb-69b3c000fa3b
+RunInfo
+
+# ╔═╡ 020341d2-9558-4c40-a993-2fff8b1bdffe
+md"""
+#### Create traces
+"""
+
+# ╔═╡ 3f715111-af88-454f-bdc2-814515f9c79b
+
+
+# ╔═╡ 993688d6-d02a-49ca-8ffe-56393c61e9b7
+
+
+# ╔═╡ c437156b-7e0f-453d-9ae4-4f83360b241a
+#heatmap(n3d[:,:,1], colorbar=true, title="final image. Frame number $(fnn)", aspect_ratio=1)
+
+# ╔═╡ 2817d6df-7553-4d93-86f8-c11f668e6749
+md"""
+## Functions
+"""
+
+# ╔═╡ 77ce7d8d-0de2-4208-b105-5fa98f10fbdc
+function compact_sci(N)
+    str = @sprintf("%.0e", N)
+    replace(str, r"e\+?0*" => "e")  # removes leading zeros and optional '+'
+end
+
+
+
+# ╔═╡ 7f544db0-d3e4-4ce3-a1e0-c0f487f23f3c
+"""
+    generate_filename(N, laser_power, pbcycles, dkcycles, tdark; with_noise=true)
+
+Generates a descriptive filename like:
+"n3d_mc_1e1_5mW_pb_1e5_dk_1e6_noise.npy"
+
+# Arguments
+- `N`: Number of molecules.
+- `laser_power`: Laser power (e.g., `5mW` from Unitful).
+- `pbcycles`: Photobleaching cycles.
+- `dkcycles`: Dark cycles.
+- `tdark`: Time in dark state (not included in filename).
+- `with_noise`: Boolean flag to include `_noise` in the filename.
+
+# Returns
+- A filename string.
+"""
+function generate_filename(N, laser_power, pbcycles, dkcycles, tdark; with_noise=true)
+    # Convert numbers to compact scientific notation
+    function sci_str(x)
+        str = @sprintf("%.0e", x)
+        replace(str, r"e\+?0*" => "e")  # compact form
+    end
+
+    # Extract laser power value and unit
+    power_val = ustrip(mW, laser_power)
+    laser_str = "$(Int(round(power_val)))mW"
+
+    # Build base string
+    fname = "n3d_mc_$(sci_str(N))_$(laser_str)_pb_$(sci_str(pbcycles))_dk_$(sci_str(dkcycles))"
+    if with_noise
+        fname *= "_noise"
+    end
+    return fname * ".npy"
+end
+
+# ╔═╡ 7280a644-4a95-4e97-83a6-16c1a9332d7c
+begin
+	NM = 1e+1
+	N=Int(NM)
+	with_noise=true
+	laser_power = 5mW
+	pbcycles = 1e+5 # photobleaching cycles (nγ abosorbed before pB)
+	dkcycles = 1e+6 # dark cycles (nγ abosorbed before DT)
+	tdark    =2s    # time in dark states before decaying to ground
+	file = generate_filename(NM, laser_power, pbcycles, dkcycles, tdark; with_noise=with_noise)
+end
+
+# ╔═╡ cbfd9e9c-2faa-4334-8324-dd7351e681b6
+begin
+	lsr = Laser(450nm, laser_power)
+	I = uconvert(Hz*cm^-2, photon_density(450nm, 1mW, 15*μm, 15*μm))
+	I2 = uconvert(Hz*cm^-2, photon_density(450nm, 3.115mW, 15*μm, 15*μm))
+
+	md"""
+	#### Laser: 
+	- Wavelength = $(lsr.λ)
+	- Power = $(lsr.P)
+	- Photon energy = $(photon_energy(lsr.λ))
+	- Intensity = $(I)
+	"""
+end
+
+# ╔═╡ 7d2d9c04-7237-4177-8711-a67df460aec7
+begin
+	sigma  = 15μm # sigma of gaussian beam in sample
+	center = (15μm,15μm) # center of laser beam
+	dimensions = [30μm, 30μm] #effective "laser light spot"
+
+	#sigma  = 1μm # sigma of gaussian beam in sample
+	#center = (0μm,0μm) # center of laser beam
+	#dimensions = [1μm, 1μm] #effectise "laser light spot"
+	
+	lexc = LaserExcitation(lsr, sigma, center)
+end
+
+# ╔═╡ 18b12b7b-db7d-40e0-be9b-cbf5a6f77438
+md"""
+- Generate "true data" for this sample.
+- The sample is iluminated with a laser excitation of intensity $(lexc.I), through an objective of numerical aperture $(obj.NA), and a filter defined between $(bf.λmin) and $(bf.λmax)-
+- The data DF includes the emission rate R (for a Molecuar efficiency MOef) and the molecular trajectories before photobleaching. 
+"""
+
 # ╔═╡ 8ad1d34e-7125-4cc9-934c-11522d6a74df
 begin 
-	pbcycles = 5e+4 # photobleaching cycles (nγ abosorbed before pB)
-	dkcycles = 1e+5 # dark cycles (nγ abosorbed before DT)
-	tdark    =2s    # time in dark states before decaying to ground
 	
 	naph3fB = FBMolecule(naph3f, "naph3-free", pbcycles, (dkcycles, tdark))
 	md"""
@@ -172,62 +279,28 @@ begin
 	"""
 end
 
-# ╔═╡ 55d8bfdf-8d6a-4d74-89d6-862fed0d2260
-md"""
-#### Define Laser Excitation 
-"""
-
-# ╔═╡ 7d2d9c04-7237-4177-8711-a67df460aec7
-begin
-	sigma  = 15μm # sigma of gaussian beam in sample
-	center = (15μm,15μm) # center of laser beam
-	dimensions = [30μm, 30μm] #effectise "laser light spot"
-
-	#sigma  = 1μm # sigma of gaussian beam in sample
-	#center = (0μm,0μm) # center of laser beam
-	#dimensions = [1μm, 1μm] #effectise "laser light spot"
-	
-	lexc = LaserExcitation(lsr, sigma, center)
-end
-
-# ╔═╡ be574290-a0c3-4cb1-990e-f1b8f66e1034
-begin
-	N = 1000
-	sample=Sample_3D(N,dimensions)
-end
-
 # ╔═╡ 5c24b381-88ce-469e-8311-8136725261c4
 md"""
 ### Generate Data
 - Generate a sample of $(N) molecules with (x,y) coordinates distributed in a spot of  $(dimensions). Each molecule is oriented with orientation defined by angles (theta, phi)
 """
 
-# ╔═╡ 18b12b7b-db7d-40e0-be9b-cbf5a6f77438
-md"""
-- Generate "true data" for this sample.
-- The sample is iluminated with a laser excitation of intensity $(lexc.I), through an objective of numerical aperture $(obj.NA), and a filter defined between $(bf.λmin) and $(bf.λmax)-
-- The data DF includes the emission rate R (for a Molecuar efficiency MOef) and the molecular trajectories before photobleaching. 
-"""
+# ╔═╡ be574290-a0c3-4cb1-990e-f1b8f66e1034
+begin
+	sample=Sample_3D(N,dimensions)
+end
 
 # ╔═╡ c1cd36d1-e43a-476c-ac1c-833b11c576f9
 begin
 	data=generate_data(naph3fB, lexc, sample, obj.NA, bf.λmin, bf.λmax)
 end
 
-# ╔═╡ 50569fd9-c673-4dc2-8bbb-69b3c000fa3b
-RunInfo
-
-# ╔═╡ 020341d2-9558-4c40-a993-2fff8b1bdffe
-md"""
-#### Create traces
-"""
-
 # ╔═╡ bfc31410-0571-4066-b80d-1acfbc0ef7ee
 dft = df_traces(data, RunInfo)
 
 # ╔═╡ f61499cf-3f2f-489b-b826-135e1e116916
 begin
-	nf = 100
+	nf = 0
 	imx = hr_image(nf, dft, RunInfo)
 	heatmap(imx, colorbar=true, title="HR image frame=$(nf) ", aspect_ratio=1)
 end
@@ -243,51 +316,75 @@ begin
 	heatmap(imgfx, colorbar=true, title="HR + Gaussian Filter frame =$(nf) ", aspect_ratio=1)
 end
 
-# ╔═╡ a3be3612-7edd-4f3c-92a3-bf92d30ce8ae
+# ╔═╡ c6ffec58-094e-4e32-bd2f-259e14a62214
 begin
-	#using NPZ
-	#npzwrite("img.npy", imgf_trimmed)
+	imfx = frame2D(nf, dft, RunInfo)
+	heatmap(imfx, colorbar=true, title="Frame $(nf): HR + GF + base-noise ", aspect_ratio=1)
 end
 
-# ╔═╡ ef259a4e-d420-47c8-b908-6677c0babfba
-imfx = frame2D(nf, dft, RunInfo)
-
-# ╔═╡ c6ffec58-094e-4e32-bd2f-259e14a62214
-heatmap(imfx, colorbar=true, title="Frame $(nf): HR + GF + base-noise ", aspect_ratio=1)
-
-# ╔═╡ 4fa40384-9520-4f49-90a6-d43317e577aa
-md"""
-### F
-"""
-
-# ╔═╡ 3f715111-af88-454f-bdc2-814515f9c79b
-f2dn =frame2Dn(imfx, RunInfo, of)
-
 # ╔═╡ b4f15620-d868-4827-963c-9334b52f4303
-heatmap(f2dn, colorbar=true, title="Frame $(nf): HR + GF + all-noise ", aspect_ratio=1)
+begin
+	f2dn =frame2Dn(imfx, RunInfo, of)
+	heatmap(f2dn, colorbar=true, title="Frame $(nf): HR + GF + all-noise ", aspect_ratio=1)
+end
 
-# ╔═╡ e8394f9d-b752-4d42-97e6-51488d5afe06
-f3d = frame3D(dft, RunInfo)
+# ╔═╡ 1ee8e8fb-a757-458a-bbf8-a6c8559f8c01
+begin
+	f3d = frame3D(dft, RunInfo)
+	fnn = 1
+	heatmap(f3d[fnn,:,:], colorbar=true, title="f3d number $(fnn)", aspect_ratio=1)
+end
 
 # ╔═╡ 50d3c818-e3f9-47f1-b1cd-84961c7e5d11
 size(f3d)
 
-# ╔═╡ 1ee8e8fb-a757-458a-bbf8-a6c8559f8c01
-begin
-	fnn = 100
-	heatmap(f3d[100,:,:], colorbar=true, title="f3d number $(fnn)", aspect_ratio=1)
+# ╔═╡ 38cfe310-33cd-4172-b2fb-3538a9f51f10
+begin 
+	f3dn = frame3Dn(dft, RunInfo, of)
+	heatmap(f3dn[fnn,:,:], colorbar=true, title="noisy f3dn number $(fnn)", aspect_ratio=1)
 end
 
-# ╔═╡ 993688d6-d02a-49ca-8ffe-56393c61e9b7
-f3dn = frame3Dn(dft, RunInfo, of)
+# ╔═╡ 3809973e-d845-4366-b863-5aa9db3d664b
+begin
+	if with_noise
+		n3d = permutedims(f3dn, (2, 3, 1)) 
+	else
+		n3d = permutedims(f3d, (2, 3, 1)) 
+	end
+end
 
-# ╔═╡ 38cfe310-33cd-4172-b2fb-3538a9f51f10
-heatmap(f3dn[150,:,:], colorbar=true, title="noisy f3dn number $(fnn)", aspect_ratio=1)
+# ╔═╡ 52a95ad2-b582-4f5b-9a2e-87dfc7ed02fc
+begin
+    FF = []
+	xm = 10
+    for i in 1:9
+        fn = (i-1) * xm + i
+        push!(FF, heatmap(n3d[:, :, fn],
+            colorbar=false,  # Optional: removes extra space
+            title="Frame $fn",
+            titlefontsize=7,
+            tickfontsize=6,
+            guidefontsize=6,
+            titlelocation=:left,
+            aspect_ratio=:equal))
+    end
 
-# ╔═╡ 2817d6df-7553-4d93-86f8-c11f668e6749
-md"""
-## Plot functions
-"""
+    plot(FF...;
+        layout=(3, 3),
+        size=(900, 900),
+        margin=1.0*Measures.mm,
+        top_margin=1.0*Measures.mm,
+        bottom_margin=1.0*Measures.mm,
+        left_margin=1.0*Measures.mm,
+        right_margin=1.0*Measures.mm,
+        plot_titlefontsize=7,
+        legendfontsize=6)
+end
+
+# ╔═╡ 106cb7cf-a4c6-4a4f-a031-6913637b2447
+begin
+	npzwrite(file, n3d)
+end
 
 # ╔═╡ 4badd96d-2461-4507-b771-1b4882cd239d
 function plot_molecule(n3f, n3c)
@@ -433,6 +530,8 @@ res
 # ╠═8d8cc6ff-3006-4cd1-9308-15b4c449a998
 # ╠═1d59335e-7c76-49c2-88f6-aef6e4312941
 # ╠═a2076949-49f3-4964-a2f8-6b3d6c6303fb
+# ╠═139f39e1-176c-410a-91bc-62234b31153d
+# ╠═7280a644-4a95-4e97-83a6-16c1a9332d7c
 # ╠═f163b606-952f-4d14-9e9c-e9d9ce8722fd
 # ╠═cbfd9e9c-2faa-4334-8324-dd7351e681b6
 # ╠═5ae75425-b152-4099-b2fd-d212a75cca51
@@ -456,18 +555,20 @@ res
 # ╟─743f3cc4-98e9-4bc8-858e-54ce328aa628
 # ╠═f61499cf-3f2f-489b-b826-135e1e116916
 # ╠═09f89004-4d5f-4094-8d1a-85dbdcdd560d
-# ╠═a3be3612-7edd-4f3c-92a3-bf92d30ce8ae
-# ╠═ef259a4e-d420-47c8-b908-6677c0babfba
 # ╠═c6ffec58-094e-4e32-bd2f-259e14a62214
-# ╠═4fa40384-9520-4f49-90a6-d43317e577aa
 # ╠═3f715111-af88-454f-bdc2-814515f9c79b
 # ╠═b4f15620-d868-4827-963c-9334b52f4303
-# ╠═e8394f9d-b752-4d42-97e6-51488d5afe06
 # ╠═50d3c818-e3f9-47f1-b1cd-84961c7e5d11
 # ╠═1ee8e8fb-a757-458a-bbf8-a6c8559f8c01
 # ╠═993688d6-d02a-49ca-8ffe-56393c61e9b7
 # ╠═38cfe310-33cd-4172-b2fb-3538a9f51f10
+# ╠═3809973e-d845-4366-b863-5aa9db3d664b
+# ╠═c437156b-7e0f-453d-9ae4-4f83360b241a
+# ╠═52a95ad2-b582-4f5b-9a2e-87dfc7ed02fc
+# ╠═106cb7cf-a4c6-4a4f-a031-6913637b2447
 # ╠═2817d6df-7553-4d93-86f8-c11f668e6749
+# ╠═77ce7d8d-0de2-4208-b105-5fa98f10fbdc
+# ╠═7f544db0-d3e4-4ce3-a1e0-c0f487f23f3c
 # ╠═4badd96d-2461-4507-b771-1b4882cd239d
 # ╠═9200aad7-9aa6-4dc6-930b-6a0e7552fb90
 # ╠═8bcbc2c2-fb3e-458d-a643-d55d7e15173c

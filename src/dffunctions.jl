@@ -14,9 +14,51 @@ using DataFrames
 using CSV
 using Interpolations
 using QuadGK
+using Unitful
+using Printf
 
+import Unitful:
+    nm, μm, mm, cm, m,
+    ns, μs, ms, s, minute, hr, d, yr, Hz,
+    eV,
+    μJ, mJ, J,
+	mW, W
 
+"""
+    generate_filename(N, laser_power, pbcycles, dkcycles, tdark; with_noise=true)
 
+Generates a descriptive filename like:
+"n3d_mc_1e1_5mW_pb_1e5_dk_1e6_noise.npy"
+
+# Arguments
+- `N`: Number of molecules.
+- `laser_power`: Laser power (e.g., `5mW` from Unitful).
+- `pbcycles`: Photobleaching cycles.
+- `dkcycles`: Dark cycles.
+- `tdark`: Time in dark state (not included in filename).
+- `with_noise`: Boolean flag to include `_noise` in the filename.
+
+# Returns
+- A filename string.
+"""
+function generate_filename(N, laser_power, pbcycles, dkcycles, tdark; with_noise=true)
+    # Convert numbers to compact scientific notation
+    function sci_str(x)
+        str = @sprintf("%.0e", x)
+        replace(str, r"e\+?0*" => "e")  # compact form
+    end
+
+    # Extract laser power value and unit
+    power_val = ustrip(mW, laser_power)
+    laser_str = "$(Int(round(power_val)))mW"
+
+    # Build base string
+    fname = "n3d_mc_$(sci_str(N))_$(laser_str)_pb_$(sci_str(pbcycles))_dk_$(sci_str(dkcycles))"
+    if with_noise
+        fname *= "_noise"
+    end
+    return fname * ".npy"
+end
 
 
 #-----------

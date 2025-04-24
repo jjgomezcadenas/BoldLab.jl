@@ -354,7 +354,8 @@ function frame3D(tracesDf::DataFrame, rinfo::Dict{Any, Any})
 
     # generate first frame and prepre 3D matrix
 	im0 = frame2D(0, tracesDf, rinfo)
-	data = [zeros(size(im0)), im0]
+	#data = [zeros(size(im0)), im0]
+    data = [im0]
 	
 	N = length(tracesDf[1, :traces])
 
@@ -369,7 +370,7 @@ end
 """Add noise to frame3D"""
 function frame3Dn(tracesDf::DataFrame, rinfo::Dict{Any, Any}, cam::CMOS)
 	im0 = frame2Dn(frame2D(0, tracesDf, rinfo), rinfo, cam)
-	data = [zeros(size(im0)), im0]
+	data = [im0]
 	
 	N = length(tracesDf[1, :traces])
 	for i in 2:N-1

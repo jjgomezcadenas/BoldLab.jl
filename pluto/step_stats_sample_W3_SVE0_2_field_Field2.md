@@ -1,0 +1,14 @@
+#### Statistics
+- sample = W3_SVE0_2
+- field = Field2
+- total intensity = 7.4432192512e10
+- Fitted 108900 pixels 
+- Pixel fraction with no signal = 0.0027548209366391185
+- #### steps:
+- centers = 1.50, 2.50, 3.50, 4.50, 5.50, 6.50, 7.50, 8.50, 9.50, 10.50
+- weights = 174.00, 9614.00, 51724.00, 33692.00, 9851.00, 2744.00, 661.00, 128.00, 10.00, 2.00
+- Mean number of steps = 4.0066482504604055
+- Max of step height at = 75.0
+- Max of step height value = 27599.0
+- Max of step length at = 12.5
+- Max of step length value = 29246.0
