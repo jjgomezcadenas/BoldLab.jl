@@ -69,11 +69,11 @@ Whatever your `fit_traces(dataX::AbstractVector{T}, niter)` returns:
 `(dataX, FitX0, FitX, S_curve, thr, best_shot)`.
 """
 function fit_traces(trz::AbstractMatrix{<:AbstractVector{T}}, 
-	                i::Int, j::Int; niter=10, thr=0.0) where {T<:Real}
+	                i::Int, j::Int; niter=10, thr=0.0, sel="auto") where {T<:Real}
     # pick out the vector at (i,j)
     dataX = trz[i, j]
     # delegate to the single‐vector fit_traces
-    return fit_traces(dataX; niter=niter, thr=thr)
+    return fit_traces(dataX; niter=niter, tresH=thr, sel=sel)
 end
 
 
@@ -104,35 +104,23 @@ A 6‐tuple `(dataX, FitX0, FitX, S_curve, thr, best_shot)` where:
    then uses the previous threshold as `thr`.  
 3. If a nonzero `thr` was found, reruns the fit at `thr` to produce final `FitX` and `S_curve`.  
 """
-function fit_traces(dataX::AbstractVector{T}; niter=10, thr=0.0) where {T<:Real}
+function fit_traces(dataX::AbstractVector{T}; niter::Int=10, tresH::Real=0.15,
+	                tol::Real=1e-3, max_iter::Int=5, sel="auto") where {T<:Real}
     
     # baseline fit at zero threshold
-    FitX, _, _, S_curve, best_shot = stepfindcore(dataX; tresH=thr, N_iter=niter)
-
-    return dataX, FitX, S_curve, best_shot
-end
 
 
-function fit_traces_old(dataX::AbstractVector{T}, niter::Int) where {T<:Real}
-    # candidate thresholds to test
-    thx = [0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0.0]
 
-    # baseline fit at zero threshold
-    FitX0, _, _, S_curve, best_shot = stepfindcore(dataX; tresH=0.0, N_iter=niter)
+	if sel == "auto"
+		S_curve, best_shot, FitX, iter, cc = auto_step_main(dataX; tresH=tresH, N_iter=niter, 
+                        tol=tol, max_iter=max_iter)
+	else
+		FitX, _, _, S_curve, best_shot = stepfindcore(dataX; tresH=tresH, N_iter=niter)
+		iter = -10
+		cc = -10.0
+	end
 
-    # try fits starting from a high threshold and exit as soon as fit succeeds
-    FitX = FitX0
-	thr = 0
-    for (i, t) in enumerate(thx)
-        FitX, _, _, S_curve, best_shot = stepfindcore(dataX; tresH=t, N_iter=niter)
-        if best_shot != 0
-			thr = t
-            break
-        end
-    end
-
-
-    return dataX, FitX0, FitX, S_curve, thr, best_shot
+    return dataX, FitX, S_curve, best_shot, iter, cc
 end
 
 
@@ -219,38 +207,48 @@ Analyze a 2D matrix of time traces by performing step-fitting on each pixel trac
 - tt is the time treshold (tt = 1 eliminates the first bin, typically exp decay)
 """
 function fit_data3(trz::AbstractMatrix{<:AbstractVector{T}}; 
-                   niter=10, thr=0.0, fplot=50, ped=1600.0, tt=1.0) where {T<:Real}
+                   niter=10, thr=0.0, ped=1600.0, tt=1.0, stdf=0.1, sel="auto") where {T<:Real}
 
+	I = Int[]
+	J = Int[]
     DX = Vector{Vector{T}}()
     FX = Vector{Vector{T}}()
-    TL = Int[]
+    ITER = Int[]
+	CC = Float64[]
 
-    df = DataFrame(nmol=Int[], nstep=Int[],
+    df = DataFrame(i=Int[], j=Int[], nmol=Int[], nstep=Int[],
                    stepHeight=T[], stepTime=Int[], stepLength=Int[])
 
     n, m = size(trz)
     nc = 0  # unique molecule index
 	nf = 0; # failed fit
+	ng = 0; # good fit
     for i in 1:n
         for j in 1:m
             nc += 1
-            dataX, FitX, S_curve, best_shot = fit_traces(trz, i, j; 
+            dataX, FitX, S_curve, best_shot, iter, cc = fit_traces(trz, i, j; 
                                                          niter=niter,
-														 thr=thr)
+														 thr=thr, sel=sel)
 
-            if best_shot > 0
+            if best_shot > 0 && std(FitX) > stdf
                 sth, stt, stl = getsteps(FitX)
                 nsteps = length(sth)
+				ng+=1
 
-                if mod(nc, fplot) == 0
-                    push!(DX, dataX)
-                    push!(FX, FitX)
-                    push!(TL, nsteps)
-                end
+				push!(I,i)
+				push!(J,j)
+				push!(DX, dataX)
+				push!(FX, FitX)
+				push!(ITER, iter)
+				push!(CC, cc)
+
+                #if mod(nc, fplot) == 0
+                    
+                #end
 
                 for k in 1:nsteps
 					if stt[k] > tt
-                    	push!(df, (nc, nsteps, sth[k] - ped, stt[k], stl[k]))
+                    	push!(df, (i, j, ng, nsteps, sth[k] - ped, stt[k], stl[k]))
 					end
                 end
             else
@@ -260,7 +258,12 @@ function fit_data3(trz::AbstractMatrix{<:AbstractVector{T}};
         end
     end
 
-    return DX, FX, TL, df, nc, nf
+	MDX = SparseArrays.sparse(I, J, DX, n, m)
+	MFX = SparseArrays.sparse(I, J, FX, n, m)
+
+	df, nc, ng, nf, I, J, MDX, MFX, ITER, CC
+
+    #return DX, FX, TL, df, nc, nf
 end
 
 
@@ -397,38 +400,40 @@ Given a 3D image stack `imst` of size (n × m × t), this function:
   An n×m matrix of vectors, each of length t.
 
 """
-function build_traces(imst::AbstractArray{T,3}; nsigma::Real=10) where {T<:Real}
-	n, m, t = size(imst)
-	# 1) Compute threshold from first frame
-	
-	frame1 = imst[:, :, 1]
-	μ = mean(frame1)
-	σ = std(frame1)
-	threshold = μ + nsigma * σ
-	
-	# 2) Build a boolean mask of "noisy" pixels
-	#    mask[i,j] == true  ⇔ pixel (i,j) is to be zeroed
-	mask = frame1 .> threshold
-	
-	# 3) Prepare a zero‐trace template
-	zero_trace = zeros(T, t)
-	
-	# 4) Allocate output matrix of vectors
-	TRZ = Matrix{Vector{T}}(undef, n, m)
-	
-	# 5) Fill in each pixel's trace or zeros
-	for i in 1:n, j in 1:m
-	    if mask[i, j]
-	        # masked pixel → all‐zero trace
-	        TRZ[i, j] = copy(zero_trace)
-	    else
-	        # good pixel → extract its time series
-	        TRZ[i, j] = vec(imst[i, j, :])
-	    end
-	end
+# function build_traces(imst::AbstractArray{T,3}; nsigma::Real=10) where {T<:Real}
 
-	return mask, TRZ
-end
+	
+# 	n, m, t = size(imst)
+# 	# 1) Compute threshold from first frame
+	
+# 	frame1 = imst[:, :, 1]
+# 	μ = mean(frame1)
+# 	σ = std(frame1)
+# 	threshold = μ + nsigma * σ
+	
+# 	# 2) Build a boolean mask of "noisy" pixels
+# 	#    mask[i,j] == true  ⇔ pixel (i,j) is to be zeroed
+# 	mask = frame1 .> threshold
+	
+# 	# 3) Prepare a zero‐trace template
+# 	zero_trace = zeros(T, t)
+	
+# 	# 4) Allocate output matrix of vectors
+# 	TRZ = Matrix{Vector{T}}(undef, n, m)
+	
+# 	# 5) Fill in each pixel's trace or zeros
+# 	for i in 1:n, j in 1:m
+# 	    if mask[i, j]
+# 	        # masked pixel → all‐zero trace
+# 	        TRZ[i, j] = copy(zero_trace)
+# 	    else
+# 	        # good pixel → extract its time series
+# 	        TRZ[i, j] = vec(imst[i, j, :])
+# 	    end
+# 	end
+
+# 	return mask, TRZ
+# end
 
 
 
@@ -524,8 +529,15 @@ end
 function plot_frames(imst::AbstractArray{T,3}; nscale::Int=20) where {T<:Real}
 
 	FF = []
+
+	
     for i in 1:9
         fn = (i-1) * nscale + i
+		if fn > size(imst)[3]
+			warn("requested frame = $(fn) is to large, set smaller nscale")
+			fn = size(imst)[3] -i
+			warn("set fn = $(fn)")
+		end
         push!(FF, heatmap(imst[:, :, fn],
             colorbar=false,  # Optional: removes extra space
             title="Frame $fn",
@@ -548,9 +560,50 @@ function plot_frames(imst::AbstractArray{T,3}; nscale::Int=20) where {T<:Real}
         legendfontsize=6)
 end
 
+
+function plot_frames_with_centroids(imst::AbstractArray{T,3}, region_stats::Vector{Vector{Dict{Symbol, Any}}}; 
+	nscale::Int=20) where {T<:Real}
+
+	FF = []
+
+	
+    for i in 1:9
+        fn = (i-1) * nscale + i
+		if fn > size(imst)[3]
+			warn("requested frame = $(fn) is to large, set smaller nscale")
+			fn = size(imst)[3] -i
+			warn("set fn = $(fn)")
+		end
+		frame = imst[:, :, fn]
+		centroids = [r[:centroid] for r in region_stats[fn]]
+	
+		p = heatmap(frame, color=:grays, aspect_ratio=1, title="Frame $fn",
+		titlefontsize=7,
+		tickfontsize=6,
+		guidefontsize=6,
+		titlelocation=:left,
+		aspect_ratio=:equal)
+		p = scatter!(p, [c[1] for c in centroids], [c[2] for c in centroids], markersize=4, color=:red)
+        push!(FF, pp)
+    end
+
+    plot(FF...;
+        layout=(3, 3),
+        size=(900, 900),
+        margin=1.0*Measures.mm,
+        top_margin=1.0*Measures.mm,
+        bottom_margin=1.0*Measures.mm,
+        left_margin=1.0*Measures.mm,
+        right_margin=1.0*Measures.mm,
+        plot_titlefontsize=7,
+        legendfontsize=6)
+end
+
+
+
 function plotfit2(dataX::AbstractVector{<:Real}, 
 	FitX1::AbstractVector{<:Real}, 
-	FitX2::AbstractVector{<:Real}, S_curve::AbstractVector{<:Real}; thr,
+	FitX2::AbstractVector{<:Real}; 
 	figsize=(1000, 800))  # Size in pixels, similar to figsize in matplotlib
 
 	plt1 = plot(1:length(dataX), dataX, 
@@ -559,17 +612,10 @@ function plotfit2(dataX::AbstractVector{<:Real},
 	legend=:topright, grid=true)
 
 	plot!(plt1, 1:length(FitX1), FitX1, 
-	label="Step Fit thr=0", color=:blue, lw=2)
+	label="Fit1", color=:blue, lw=2)
 	plot!(plt1, 1:length(FitX2), FitX2, 
-	label="Step Fit, thr=$(thr)", color=:red, lw=2)
-
-	plt2 = plot(1:length(S_curve), S_curve, 
-	marker=:circle, label="S-curve",
-	xlabel="Iteration", ylabel="S-value (MSE ratio)", 
-	title="Goodness of Fit (S-curve)", 
-	grid=true, legend=:topright)
-
-	plot(plt1, plt2, layout=(2, 1), size=figsize)
+	label="FitX2 ", color=:red, lw=2)
+	plt1
 end
 
 
@@ -715,8 +761,7 @@ function plot_steps(TL::Vector{Int},
 end
 
 
-function plot_trx(DX::AbstractVector{<:AbstractVector{T}}, FX::AbstractVector{<:AbstractVector{T}};
-				  nx=4, ny=4, figsize=(1500, 500)) where {T<:Real}
+function plot_trx(DX::AbstractVector{<:AbstractVector{T}}, FX::AbstractVector{<:AbstractVector{T}}; nx=4, ny=4, figsize=(1500, 500)) where {T<:Real}
 
 	nplots = min(length(DX), nx * ny)
 	plots_array = Vector{Any}(undef, nx * ny)
@@ -738,6 +783,84 @@ function plot_trx(DX::AbstractVector{<:AbstractVector{T}}, FX::AbstractVector{<:
 	end
 
 	plot(plots_array...; layout=(nx, ny), size=figsize)
+end
+
+"""
+    plot_trx(DX, FX; ni=1, nf=9, layout=(3,3), figsize=(1500, 500))
+
+Plot a subset of raw vs fitted traces stored in two matrices of vectors.
+
+# Arguments
+- `DX::AbstractMatrix{<:AbstractVector{T}}`  
+  Matrix (dense or sparse) whose nonzero entries are the raw 1-D traces.
+- `FX::AbstractMatrix{<:AbstractVector{T}}`  
+  Matrix (same size & sparsity pattern as `DX`) of fitted traces.
+- `ni::Int=1`  
+  Index (into the list of nonzero traces) of the first trace to plot.
+- `nf::Int=9`  
+  Index of the last trace to plot.
+- `layout::Tuple{Int,Int}=(3,3)`  
+  Number of rows and columns in the subplot grid.
+- `figsize=(1500, 500)`  
+  Figure size in pixels `(width, height)`.
+
+# Returns
+A `Plots.Plot` object with `(nf−ni+1)` subplots showing raw vs fit traces.
+
+# Throws
+- If `DX` and `FX` do not have identical dimensions or nonzero positions.  
+- If `ni`/`nf` are out of the valid range.  
+- If `layout` is too small to hold `(nf−ni+1)` subplots.
+"""
+function plot_trx(DX::AbstractMatrix{<:AbstractVector{T}},
+                  FX::AbstractMatrix{<:AbstractVector{T}};
+                  ni::Int=1, nf::Int=9,
+                  layout::Tuple{Int,Int}=(3,3),
+                  figsize=(1500, 500)) where {T<:Real}
+
+    @assert size(DX) == size(FX) "DX and FX must have the same dimensions"
+
+    # Extract nonzero indices/values (works for sparse or dense)
+    rowsD, colsD, dxs = findnz(DX)
+    rowsF, colsF, fxs = findnz(FX)
+    @assert rowsD == rowsF && colsD == colsF "DX and FX must have the same nonzero positions"
+
+    total = length(dxs)
+    @assert 1 ≤ ni ≤ nf ≤ total "Need 1 ≤ ni ≤ nf ≤ number of traces ($total)"
+
+    nx, ny = layout
+    needed = nf - ni + 1
+    @assert needed ≤ nx * ny "Layout $(layout) too small for $needed plots"
+
+    # Build each subplot
+    plots = Vector{Any}(undef, nx * ny)
+    idx = 1
+    for k in ni:nf
+        i, j = rowsD[k], colsD[k]
+        raw = dxs[k]
+        fit = fxs[k]
+
+        p = plot(1:length(raw), raw;
+                 color=:gray, lw=1,
+                 label="Raw @($i,$j)",
+                 xlabel="Time step", ylabel="Intensity",
+                 title="Trace ($i,$j)",
+                 legend=:topright, grid=true)
+
+        plot!(p, 1:length(fit), fit;
+              color=:red, lw=2, label="Fit")
+
+        plots[idx] = p
+        idx += 1
+    end
+
+    # Fill remaining slots with empty plots
+    for k in idx:(nx*ny)
+        plots[k] = plot()  # blank
+    end
+
+    # Combine into a single figure
+    return plot(plots...; layout=layout, size=figsize)
 end
 
 
@@ -777,7 +900,9 @@ function plot_trace(df::DataFrame, mol_id::Int)
 	if length(ys) >0
 		ymax = maximum(ys) + 10
 		xmax = maximum(xs) 
-    	plot(xs, ys, ylims=(0, ymax), xlims=(0, xmax), label="Trace $mol_id", lw=2, 
+    	#plot(xs, ys, ylims=(0, ymax), xlims=(0, xmax), label="Trace $mol_id", lw=2, 
+		# xlabel="Time", ylabel="Step Height", title="")
+		plot(xs, ys, xlims=(0, xmax), label="Trace $mol_id", lw=2, 
 		 xlabel="Time", ylabel="Step Height", title="")
 	else
 		plot(label="Trace $mol_id", xlabel="Time", ylabel="Step Height", title="")

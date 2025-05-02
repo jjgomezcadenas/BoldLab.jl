@@ -116,7 +116,7 @@ function hist1d(x::AbstractVector{T},  bins::AbstractVector{T}, xs::String;
                 legend::Bool=false) where {T<:Real} 
 
     h = hist1d(x, bins, norm)
-    h, plot_histogram(h, datap, markersize, fwl, label, legend)
+    h, plot_histogram(h, datap, markersize, fwl, label, xs, legend)
     
 end
 
@@ -124,7 +124,8 @@ end
 function plot_histogram(h::Histo1d, datap::Bool,
                         markersize::Int64, 
                         fwl::Bool,
-                        label::String, 
+                        label::String,
+                        xs::String, 
                         legend::Bool)
     xg = h.centers
     yg = eltype(xg).(h.weights)
@@ -312,7 +313,7 @@ function step_hist(data::Vector{<:Real};
     hn = y_pad[end-1]  # last bin’s height after +1
     plot!(plt, [en, en], [baseline, hn]; linecolor=:black, lw=1)
 
-    return plt
+    return get_histo1d(h), plt
 end
 
 end # module 

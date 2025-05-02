@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.5
+# v0.20.8
 
 using Markdown
 using InteractiveUtils
@@ -43,7 +43,7 @@ begin
 	using PhysicalConstants.CODATA2018
 	using NPZ
 	import Measures 
-	
+	import TiffImages
 end
 
 # ╔═╡ e6f2b315-b5b0-4983-a1c0-4b396b337b97
@@ -220,7 +220,7 @@ end
 
 # ╔═╡ 7280a644-4a95-4e97-83a6-16c1a9332d7c
 begin
-	NM = 1e+1
+	NM = 1e+2
 	N=Int(NM)
 	with_noise=true
 	laser_power = 5mW
@@ -316,6 +316,12 @@ begin
 	heatmap(imgfx, colorbar=true, title="HR + Gaussian Filter frame =$(nf) ", aspect_ratio=1)
 end
 
+# ╔═╡ 054774b2-dbd6-4cfe-a325-538aae544415
+resx
+
+# ╔═╡ b852799f-684b-446f-905f-d4fd19f6400f
+sigmax
+
 # ╔═╡ c6ffec58-094e-4e32-bd2f-259e14a62214
 begin
 	imfx = frame2D(nf, dft, RunInfo)
@@ -343,6 +349,9 @@ begin
 	f3dn = frame3Dn(dft, RunInfo, of)
 	heatmap(f3dn[fnn,:,:], colorbar=true, title="noisy f3dn number $(fnn)", aspect_ratio=1)
 end
+
+# ╔═╡ 422d954e-86da-418d-9300-6922bfdc9c79
+f3dn
 
 # ╔═╡ 3809973e-d845-4366-b863-5aa9db3d664b
 begin
@@ -379,6 +388,22 @@ begin
         right_margin=1.0*Measures.mm,
         plot_titlefontsize=7,
         legendfontsize=6)
+end
+
+# ╔═╡ 14a66cac-ebaa-473e-9e98-7b60dbea5c93
+file
+
+# ╔═╡ 45ef89d8-7c20-410f-934f-aba37ff6f291
+file2 = replace(file, r"\.npy$" => ".tif")
+	
+
+# ╔═╡ cc7cdd7c-0299-4d3b-826f-9ab73ab14fe9
+begin
+	img16 = convert.(UInt16, round.(n3d .* 65535 ./ maximum(n3d)))
+	img_gray = colorview(Gray, n3d)
+	#img32 = Float32.(n3d)
+	#img32
+	TiffImages.save(file2, img_gray)
 end
 
 # ╔═╡ 106cb7cf-a4c6-4a4f-a031-6913637b2447
@@ -555,6 +580,8 @@ res
 # ╟─743f3cc4-98e9-4bc8-858e-54ce328aa628
 # ╠═f61499cf-3f2f-489b-b826-135e1e116916
 # ╠═09f89004-4d5f-4094-8d1a-85dbdcdd560d
+# ╠═054774b2-dbd6-4cfe-a325-538aae544415
+# ╠═b852799f-684b-446f-905f-d4fd19f6400f
 # ╠═c6ffec58-094e-4e32-bd2f-259e14a62214
 # ╠═3f715111-af88-454f-bdc2-814515f9c79b
 # ╠═b4f15620-d868-4827-963c-9334b52f4303
@@ -562,10 +589,14 @@ res
 # ╠═1ee8e8fb-a757-458a-bbf8-a6c8559f8c01
 # ╠═993688d6-d02a-49ca-8ffe-56393c61e9b7
 # ╠═38cfe310-33cd-4172-b2fb-3538a9f51f10
+# ╠═422d954e-86da-418d-9300-6922bfdc9c79
 # ╠═3809973e-d845-4366-b863-5aa9db3d664b
 # ╠═c437156b-7e0f-453d-9ae4-4f83360b241a
 # ╠═52a95ad2-b582-4f5b-9a2e-87dfc7ed02fc
+# ╠═14a66cac-ebaa-473e-9e98-7b60dbea5c93
+# ╠═45ef89d8-7c20-410f-934f-aba37ff6f291
 # ╠═106cb7cf-a4c6-4a4f-a031-6913637b2447
+# ╠═cc7cdd7c-0299-4d3b-826f-9ab73ab14fe9
 # ╠═2817d6df-7553-4d93-86f8-c11f668e6749
 # ╠═77ce7d8d-0de2-4208-b105-5fa98f10fbdc
 # ╠═7f544db0-d3e4-4ce3-a1e0-c0f487f23f3c

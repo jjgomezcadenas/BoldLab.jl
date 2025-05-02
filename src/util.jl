@@ -118,40 +118,38 @@ function create_dir!(dir)
 end
 
 
-begin
-	"""
-	Find max of a frame in a stack and return value of the maximum and indices
-	"""
-	function find_max(imst::AbstractArray{T, 3}; tf=1) where {T<:Real}
-		find_max(imst[:, :, tf])
-	end
-	
-	
-	"""
-	Find max of a matrix and return value of the maximum and indices
-	"""
-	function find_max(frame::AbstractArray{T, 2}) where {T<:Real}
-		
-		# Find the maximum value and its linear index
-		max_val = maximum(frame)
-		idx = argmax(frame)
-		
-		# Convert linear index to (i, j)
-		(i, j) = Tuple(CartesianIndices(frame)[idx])
-		i,j,max_val
-	end
-	
-	
-	"""
-	Find max of a vector and return maximum and index
-	"""
-	function find_max(frame::AbstractVector{T}) where {T<:Real}
-		
-		# Find the maximum value and its linear index
-		max_val = maximum(frame)
-		idx = argmax(frame)
-	    idx, max_val
-	end
+"""
+Find max of a frame in a stack and return value of the maximum and indices
+"""
+function find_max(imst::AbstractArray{T, 3}; tf=1) where {T<:Real}
+    find_max(imst[:, :, tf])
+end
+
+
+"""
+Find max of a matrix and return value of the maximum and indices
+"""
+function find_max(frame::AbstractArray{T, 2}) where {T<:Real}
+    
+    # Find the maximum value and its linear index
+    max_val = maximum(frame)
+    idx = argmax(frame)
+    
+    # Convert linear index to (i, j)
+    (i, j) = Tuple(CartesianIndices(frame)[idx])
+    i,j,max_val
+end
+
+
+"""
+Find max of a vector and return maximum and index
+"""
+function find_max(frame::AbstractVector{T}) where {T<:Real}
+    
+    # Find the maximum value and its linear index
+    max_val = maximum(frame)
+    idx = argmax(frame)
+    idx, max_val
 end
 
 

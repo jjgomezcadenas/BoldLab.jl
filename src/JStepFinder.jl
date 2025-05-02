@@ -1,6 +1,95 @@
 module JStepFinder
-export stepfindcore
+export stepfindcore, auto_step_main
 using Statistics
+using LinearAlgebra
+include("SimpleLogger.jl")
+using .SimpleLogger
+global_log_level = ERROR
+
+
+"""
+    auto_step_main(dataX; tresH=0.15, N_iter=10, tol=1e-3, max_iter=5)
+
+Perform iterative step-finding on `dataX` until convergence.
+
+# Arguments
+- `dataX::AbstractVector{<:Real}`: The signal to analyze.
+- `tresH::Real`: Step detection threshold.
+- `N_iter::Int`: Maximum number of iterations inside `stepfindcore`.
+- `tol::Real`: Relative tolerance for convergence.
+- `max_iter::Int`: Maximum number of outer iterations.
+
+# Returns
+- `S_curve`: Last score curve from step detection.
+- `best_shot::Int`: Best iteration index in last step detection.
+- `Fit_final`: Final reconstructed fit to the data.
+"""
+function auto_step_main(dataX::AbstractVector{T}; 
+                        tresH::Real=0.15, N_iter::Int=10, 
+                        tol::Real=1e-3, max_iter::Int=5) where {T<:Real}
+
+    #Fit_current = zeros(T, length(dataX))
+    #last_best_shot = 0
+    #last_S_curve = zeros(T, N_iter)  # Preallocate a dummy S_curve in case stepfindcore fails
+
+    FitX, _, _, S_curve, best_shot = stepfindcore(dataX; tresH, N_iter)
+    iter = -10
+	cc = -10.0
+    
+    if best_shot == 0    
+        return S_curve, best_shot, FitX, iter, cc
+    end
+    
+    Fit_current = FitX
+    last_best_shot = best_shot
+    last_S_curve = S_curve
+
+    debug(" best_shot = $(best_shot)")
+    cc =-1.0
+    for iter in 1:max_iter
+
+        debug(" iter = $(iter)")
+        residuX = dataX .- Fit_current
+
+        debug(" R - D = $(sum(residuX))")
+        Correction, _, _, S_curve, best_shot = stepfindcore(residuX; tresH, N_iter)
+
+        if best_shot > 0
+            debug("best_shot of Correction =$(best_shot)")
+        
+            debug(" C - D = $(sum(dataX - Correction))")
+            Fit_updated = append_fitx(Correction, Fit_current, dataX; Nmin=10)
+            #Fit_updated = append_fitx(residuX, Fit_current, dataX; Nmin=5)
+
+            debug(" U - D = $(sum( dataX - Fit_updated))")
+        else
+            # No good step found, return current state
+            debug("No good step found, return current state")
+            return last_S_curve, last_best_shot, Fit_current, iter, cc
+        end
+
+        # Convergence check
+        cc = norm(Fit_updated - Fit_current) / (norm(Fit_current) + eps())
+        debug("CC = $(cc)")
+        if cc < tol
+            debug("achieved convergence L - I =$(sum(Fit_updated - Fit_current ))")
+            # eps() prevents division by zero
+            last_best_shot = best_shot
+            last_S_curve = S_curve
+            Fit_current = Fit_updated
+            return last_S_curve, last_best_shot, Fit_current, iter, cc
+        end
+
+        # Prepare for next iteration
+        last_best_shot = best_shot
+        last_S_curve = S_curve
+        Fit_current = Fit_updated
+    end
+
+    return last_S_curve, last_best_shot, Fit_current, iter, cc
+end
+
+
 
 """
     stepfindcore(dataX::AbstractVector{T}; tresH=0.05, N_iter=0) where {T<:Real}
@@ -8,7 +97,9 @@ using Statistics
 Performs an iterative step fitting process to find step locations in a 1D signal `dataX`.
 Returns the best fit, counterfit, split log, final S-curve, and number of best steps.
 """
-function stepfindcore(dataX::AbstractVector{T}; tresH=0.05, N_iter=0) where {T<:Real}
+
+
+function stepfindcore(dataX::AbstractVector{T}; tresH::Real=0.15, N_iter::Int=10) where {T<:Real}
     N_iter = (N_iter == 0 || N_iter > length(dataX) ÷ 4) ? length(dataX) ÷ 4 : N_iter
     S_curve, splitlog = A121_split_until_ready(dataX, N_iter)
     best_shot, S_curve_fin = A122_eval_Scurve(S_curve, tresH)
@@ -285,5 +376,116 @@ function A1213_adapt_counterfit(cFitX::AbstractVector{T1},
 
     return cFitX
 end
+
+
+"""
+    AppendFitX(newFitX::AbstractVector{T}, FitX::AbstractVector{T}, dataX::AbstractVector{T}) where {T<:Real}
+
+Combine two fit traces (`FitX` and `newFitX`) into a single consistent stepwise signal.
+
+# Behavior
+- Merges the two fits by summing them.
+- Detects step changes in the combined fit.
+- If two step changes are closer together than a minimum number of points (`Nmin=2`), 
+  re-fits that segment using `splitFast` to enforce a clean step.
+
+# Arguments
+- `newFitX`: New fit trace (1D vector).
+- `FitX`: Existing fit trace (1D vector).
+- `dataX`: Original data trace (needed to redo local fits when step locations are too close).
+
+# Returns
+- `combiFitX`: Combined and corrected fit trace.
+
+"""
+function AppendFitX(newFitX::AbstractVector{T}, FitX::AbstractVector{T}, dataX::AbstractVector{T};
+    Nmin=2) where {T<:Real}
+    # Combine the two fits
+    combiFitX = FitX .+ newFitX
+    Lx = length(combiFitX)
+
+    # Find where steps happen (where the value changes)
+    ixes0 = findall(diff(combiFitX) .!= 0)
+
+    if !isempty(ixes0)
+        # Pad with start and end to define segments
+        ixes = vcat(-1, ixes0, Lx)
+
+        # Find where steps are too close (less than Nmin points apart)
+        whereblips = findall(diff(ixes) .< Nmin)
+
+        # For each problematic region, re-fit using splitFast
+        for ix in whereblips
+            lo = ix - 1
+            ixlo = ixes[lo]
+            ixhi = ixes[lo + 3]
+
+            segment = dataX[(ixlo+2):(ixhi)]  # Julia is 1-based indexing
+            idx, avl, avr, rankit, errorcurve = splitFast(segment)
+
+            # Apply the new local fit
+            combiFitX[(ixlo+2):(ixlo+1+idx+1)] .= avl
+            combiFitX[(ixlo+2+idx):(ixhi)] .= avr
+        end
+    end
+
+    return combiFitX
+end
+
+
+"""
+    append_fitx(newFitX::AbstractVector{T}, FitX::AbstractVector{T}, dataX::AbstractVector{T}; Nmin::Int=2) where {T<:Real}
+
+Merge two fitted traces (`FitX` and `newFitX`) and remove steps that are closer together than `Nmin` points.  
+For each close pair of steps, re-fit the region using `splitFast`.
+
+# Arguments
+- `newFitX`, `FitX`: Step-fitted traces of same length.
+- `dataX`: Original signal used for refitting.
+- `Nmin`: Minimum allowed spacing between consecutive steps (default: 2).
+
+# Returns
+- `combiFitX`: Combined step-fit trace, with merged and re-fitted regions where needed.
+"""
+function append_fitx(newFitX::AbstractVector{T}, 
+                     FitX::AbstractVector{T}, dataX::AbstractVector{T}; Nmin::Int=2) where {T<:Real}
+    # Combine fits
+    combiFitX = newFitX .+ FitX
+    Lx = length(combiFitX)
+
+    # Find step changes (where signal changes)
+    diffs = diff(combiFitX)
+    ixes0 = findall(!≈(0.0), diffs) .+ 1  # step indices
+    if isempty(ixes0)
+        return combiFitX
+    end
+
+    # Pad start and end for indexing
+    ixes = vcat(0, ixes0, Lx)
+
+    # Identify segments that are too short
+    seg_lengths = diff(ixes)
+    close_idx = findall(<(Nmin), seg_lengths)
+
+    for ci in close_idx
+        # Re-fit over a region that spans the close segment and its neighbors
+        lo = max(ci - 1, 1)
+        hi = min(ci + 2, length(ixes) - 1)
+        ixlo = ixes[lo] + 1
+        ixhi = ixes[hi]
+
+        # Extract segment from original data
+        segment = dataX[ixlo:ixhi]
+        idx, avl, avr, _, _ = splitFast(segment)
+
+        # Replace that segment in the combined fit
+        combiFitX[ixlo:ixlo+idx-1] .= avl
+        combiFitX[ixlo+idx:end][1:ixhi - (ixlo + idx) + 1] .= avr
+    end
+
+    return combiFitX
+end
+
+
 
 end # module
