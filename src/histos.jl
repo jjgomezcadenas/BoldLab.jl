@@ -8,6 +8,7 @@ import Base.length
 # histograms
 
 export hist1d, hist2d, p1df, step_hist, in_range, get_histo1d
+export scan_level, get_vals_from_sparse
 
 include("util.jl")
 

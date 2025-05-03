@@ -14,7 +14,7 @@ export get_stats, pixel_trace, traces_stats, traces_h2d, traces_thr
 export plot_traces_stats, plot_stats, plot_traces_h2d
 export plot_steps, plot_trx, fit_data, fit_data3, fit_traces, getsteps, plotfit, plotfit2
 export traces_above_thr, build_traces
-export plot_trace, plot_traces, plot_sdf, plot_frames
+export plot_trace, plot_traces, plot_sdf, plot_frames, find_fit_candidates2
 export renumber_nmol!
 
 # plt_ft_trace
@@ -264,6 +264,74 @@ function fit_data3(trz::AbstractMatrix{<:AbstractVector{T}};
 	df, nc, ng, nf, I, J, MDX, MFX, ITER, CC
 
     #return DX, FX, TL, df, nc, nf
+end
+
+
+"""
+    find_fit_candidates2(trzs, df; sel="core", ped=0.0, niter=5, thr=0.5) 
+        -> (df2, I, J, DX, FX, SC)
+
+Identify and fit step-like candidate traces from a matrix of time traces, based on pixel coordinates provided in a DataFrame.
+
+# Arguments
+- `trzs`: A matrix (typically sparse) of time traces indexed by pixel position `(i, j)`, as returned by `build_sparse_traces`.
+- `df`: A `DataFrame` containing at least columns `i` and `j`, indicating which pixels to analyze.
+- `sel`: Selection mode passed to `fit_traces` (default `"core"`).
+- `ped`: Pedestal value to subtract from each trace and its fit (default `0.0`).
+- `niter`: Number of iterations passed to `fit_traces` (default `5`).
+- `thr`: Threshold value (e.g. for S-curve acceptance) passed to `fit_traces` (default `0.5`).
+
+# Returns
+A tuple:
+- `df2`: A `DataFrame` summarizing all detected steps. Columns include:
+  - `i`, `j`: pixel coordinates,
+  - `nmol`: candidate index (unique for each trace with steps),
+  - `nstep`: number of steps detected,
+  - `stepHeight`, `stepTime`, `stepLength`: parameters per step.
+- `I`, `J`: Vectors of `i`, `j` indices for accepted candidates.
+- `DX`, `FX`: Vectors of raw and fitted traces (Float32).
+- `SC`: Vector of S-curve values per trace.
+
+# Behavior
+- Only traces with `best_shot > 0` (i.e. where steps are detected) are included.
+- Traces are pedestal-subtracted (`. - ped`) before storage.
+- One row is added to `df2` for each step detected in a trace.
+"""
+function find_fit_candidates2(trzs, df; sel="core", ped=0.0, niter=5, thr=0.5)
+	I = Int[]
+	J = Int[]
+    DX = Vector{Vector{Float32}}()
+    FX = Vector{Vector{Float32}}()
+	SC = Vector{Vector{Float32}}()
+	
+	ng = 0
+
+	df2 = DataFrame(i=Int[], j=Int[], nmol=Int[], bestShot=Float32[], nstep=Int[],
+                   stepHeight=Float32[], stepHeightMax=Float32[], stepTime=Int[], stepLength=Int[])
+
+	for row in eachrow(df)
+		trace = trzs[row.i, row.j] 
+    	dataX, FitX, S_curve, best_shot, iter, cc = fit_traces(trace, niter=niter, 														tresH=thr, sel=sel)
+		if best_shot >0
+			ng+=1
+			push!(I,row.i)
+			push!(J,row.j)
+			push!(DX, dataX .-ped)
+			push!(FX, FitX .- ped)
+			push!(SC, S_curve)
+
+			sth, stt, stl = getsteps(FitX)
+			sthmx = maximum(sth)
+			nsteps = length(sth)
+
+			for k in 1:nsteps
+                push!(df2, (row.i, row.j, ng, best_shot, nsteps, sth[k] - ped, sthmx - ped, stt[k], stl[k]))
+			end
+            
+		end
+	end
+	
+	df2, I, J, DX, FX, SC
 end
 
 
@@ -577,7 +645,7 @@ function plot_frames_with_centroids(imst::AbstractArray{T,3}, region_stats::Vect
 		frame = imst[:, :, fn]
 		centroids = [r[:centroid] for r in region_stats[fn]]
 	
-		p = heatmap(frame, color=:grays, aspect_ratio=1, title="Frame $fn",
+		p = heatmap(frame, color=:grays, title="Frame $fn",
 		titlefontsize=7,
 		tickfontsize=6,
 		guidefontsize=6,

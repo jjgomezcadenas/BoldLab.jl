@@ -13,6 +13,81 @@ using Printf
 
 
 """
+    get_vals_from_sparse(sm) -> (rows, cols, vals)
+
+Extract the nonzero entries of a sparse matrix in compressed sparse column (CSC) format.
+
+# Arguments
+- `sm`: A sparse matrix (typically of type `SparseMatrixCSC{T}`) containing nonzero values.
+
+# Returns
+A tuple of three vectors:
+- `rows::Vector{Int}`: Row indices of the nonzero values.
+- `cols::Vector{Int}`: Column indices of the nonzero values.
+- `vals::Vector{Float64}`: The corresponding nonzero values.
+
+# Notes
+- This function manually iterates over the internal CSC representation (`colptr`, `rowval`, `nzval`) of the sparse matrix.
+- The output is suitable for reconstructing or analyzing the sparsity pattern and values outside of matrix form.
+
+
+"""
+function get_vals_from_sparse(sm)
+	rows = Int[]
+	cols = Int[]
+	vals = Float64[]
+
+	for j in 1:size(sm, 2)
+	    for idx in sm.colptr[j]:(sm.colptr[j+1]-1)
+	        i = sm.rowval[idx]
+	        v = sm.nzval[idx]
+	        push!(rows, i)
+	        push!(cols, j)
+	        push!(vals, v)
+	    end
+	end
+	return rows, cols, vals
+end
+
+
+"""
+    scan_level(dir::AbstractString) -> (subdirs, npy_files, tiff_files)
+
+Scan a given directory and list its visible contents, separating them into subdirectories, 
+`.npy` files, and `.tif/.tiff` image files.
+
+# Arguments
+- `dir::AbstractString`: Path to the directory to scan.
+
+# Returns
+A tuple of three vectors:
+- `subdirs::Vector{String}`: Names of visible subdirectories.
+- `npy_files::Vector{String}`: Names of `.npy` files in the directory.
+- `tiff_files::Vector{String}`: Names of `.tif` or `.tiff` image files.
+
+# Notes
+- Hidden files (starting with `"."`) are ignored.
+- The returned names are **basenames only**, not full paths.
+- Sorting is applied to the listing.
+
+# Example
+```julia
+subdirs, npys, tiffs = scan_level("/path/to/data")
+"""
+function scan_level(dir::AbstractString)
+    entries = readdir(dir; join=true, sort=true)
+    vis     = filter(e -> !startswith(basename(e), "."), entries)
+
+    subdirs = filter(isdir, vis)
+    npys    = filter(e -> endswith(e, ".npy"), vis)
+    tiffs   = filter(e -> endswith(lowercase(e), ".tif")  ||
+                            endswith(lowercase(e), ".tiff"), vis)
+
+    return basename.(subdirs), basename.(npys), basename.(tiffs)
+end
+
+	
+"""
 	to_fstr(val::Any, fmt::String)
 
 Convert val into a formatted string using @sprintf
@@ -27,6 +102,7 @@ function to_fstr(val::Any, fmt::String)
 	end
 	eval(ex)
 end
+
 
 """
     vect_to_fstr(vect::AbstractVector, fmt::String)
