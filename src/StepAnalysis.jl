@@ -307,7 +307,7 @@ function find_fit_candidates2(trzs, df; sel="core", ped=0.0, niter=5, thr=0.5)
 	ng = 0
 
 	df2 = DataFrame(i=Int[], j=Int[], nmol=Int[], bestShot=Float32[], nstep=Int[],
-                   stepHeight=Float32[], stepHeightMax=Float32[], stepTime=Int[], stepLength=Int[])
+                   stepHeight=Float32[], stepHeightMin=Float32[], stepTime=Int[], stepLength=Int[])
 
 	for row in eachrow(df)
 		trace = trzs[row.i, row.j] 
@@ -321,7 +321,7 @@ function find_fit_candidates2(trzs, df; sel="core", ped=0.0, niter=5, thr=0.5)
 			push!(SC, S_curve)
 
 			sth, stt, stl = getsteps(FitX)
-			sthmx = maximum(sth)
+			sthmx = minimum(sth)
 			nsteps = length(sth)
 
 			for k in 1:nsteps
