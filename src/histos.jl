@@ -269,7 +269,8 @@ function step_hist(data::Vector{<:Real};
                    xlim::Union{Nothing, Tuple{Float64, Float64}} = nothing,
                    logy::Bool = false,
                    xlabel::String = "",
-                   ylabel::String = "")
+                   ylabel::String = "",
+                   title::String="")
 
     # 1. Compute histogram
     edges = isnothing(xlim) ? nothing :
@@ -294,6 +295,7 @@ function step_hist(data::Vector{<:Real};
                lw         = 1,
                xlabel     = xlabel,
                ylabel     = ylabel,
+               title     = title,
                legend     = false)
 
     # 4. Optional log scale

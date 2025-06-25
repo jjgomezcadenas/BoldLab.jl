@@ -322,7 +322,7 @@ function find_fit_candidates2(trzs, df; sel="core", ped=0.0, niter=5, thr=0.5)
 
 			sth, stt, stl = getsteps(FitX)
 			sthmx = minimum(sth)
-			nsteps = length(sth)
+			nsteps = length(sth) - 1
 
 			for k in 1:nsteps
                 push!(df2, (row.i, row.j, ng, best_shot, nsteps, sth[k] - ped, sthmx - ped, stt[k], stl[k]))

@@ -301,284 +301,6 @@ end
 # ╔═╡ d34b9105-09d4-4876-842d-bcf74249cca9
 @bind pthr NumberField(0:0.1:200.0, default=30.0)
 
-# ╔═╡ 783bbb4f-1bb1-4d57-881d-6a6f3c61e25b
-begin
-	totalI, meanI, stdI = get_stats(imxt; bck=0.0)
-	plot_stats(totalI, meanI, stdI)
-end
-
-# ╔═╡ 57692746-065d-4d75-8a41-7ffafd69550e
-md"""
-- total intensity = $(Float64(sum(totalI)))
-"""
-
-# ╔═╡ 74deedfc-a344-4373-9fc9-db22e83d48ac
-md"""
-#### Get traces from the imst matrix
-"""
-
-# ╔═╡ d92c4660-4950-4adf-aceb-bc94663411c6
-function select_trace(TRZS, df::DataFrame, row::Int) 
-	i = df.i[row]
-	j = df.j[row]
-    trace = TRZS[i, j]  # safe, only defined where needed
-	i,j, trace
-end
-
-# ╔═╡ 3a8e7300-d209-4e50-ace8-c4b841d71f42
-md"""
-#### Plot traces
-"""
-
-# ╔═╡ 51062b57-15c3-4288-bd14-74afb1bd08d2
-md"""
-## Autostepfinder
-- We call autostepfinder with thr=0, and a guess on the number of interactions. The resulting S-curve can be used to refine the actual interactions. 
-"""
-
-# ╔═╡ 567d39c7-f9ae-453a-8e9a-25672b399264
-md"- select the traze to fit"
-
-# ╔═╡ 1c6507e3-821f-4e07-b41e-b3c106df3671
-@bind ntrz NumberField(0:100, default=1)
-
-# ╔═╡ 415f6577-d2e6-4f7d-b1ee-5e1695ce98e3
-md"""
-- In standard fit, keep thr=0, used as parameter only to show that increasing thr values ruins the fit often
-"""
-
-# ╔═╡ e04c9c53-7ae2-474b-87bc-97bd58f458fa
-@bind thr NumberField(0.0:0.1:1.1, default=0.0)
-
-# ╔═╡ 3ad05178-0420-41af-8b6d-19994428bc5e
-md"- Guess on the number of interactions. Check the value of the S-Curve. The optimal number of interactions should be set to the peak of the S-Curve +1. If the data is not noisy, the best fit will find the minimum number of steps by itself, but noisy data may result in higher steps"
-
-# ╔═╡ 86e3c52c-9119-4d7d-bc7a-dc2f6cd63303
-@bind niter NumberField(0:10, default=3)
-
-# ╔═╡ 5231948d-5da0-406b-9086-06118b7b4a90
-md"""
-- PELT can run in a range of penalties and provide optimal output
-"""
-
-# ╔═╡ 77f5c1c3-11bb-4976-af44-1b488f08de6b
-md"""
-## Fits to data
-"""
-
-# ╔═╡ 3115a147-d41b-4ab6-9ad9-0f3b30fb4504
-md"""
-- Set the vaue of threshold
-"""
-
-# ╔═╡ f175508e-f0ea-48a9-ba72-d2e21215de1d
-md"""
-- Set the vaue of iterations (number of steps to be sought in the data)
-"""
-
-# ╔═╡ 60628fe1-6060-4d1f-b7c8-e1d9bd4032a5
-md"""
-## Fits with PELT
-"""
-
-# ╔═╡ 76f1b23b-b6c4-43a0-9e53-3b2ff553f167
-md"""
-## PELT code
-"""
-
-# ╔═╡ 324eae42-5303-4f16-8437-42e6f558fdb0
-"""
-PELT based fit
-"""
-function pelt_fit(tz::AbstractVector{T}; i::Int=1, f::Int=5) where {T<:Real}
-	# Estimate the std of the distribution for range i:f
-	σi = std(tz[i:f])
-
-	# compute the penalty functions
-	pn1 =log(length(tz))  # minimum penalty (tends to overfit)
-	pn2 = 100 * pn1 # defined the maximum range (PELT will mange optimal)
-	
-	# Cost distribution is normal with known std and unknown mean
-	costfi = NormalMeanSegment(tz, σi)
-
-	# run CROPS
-	crops_output = CROPS(costfi , length(tz), pn1, pn2)
-	#crops_output = @PELT tz Normal(:?, σi) pn1 pn2
-
-		
-end
-
-# ╔═╡ d14e0d6f-4b0d-42f7-8567-d574d5ba6930
-function getsteps_pelt(tz::AbstractVector{<:Real}, c1) 
-    nsteps = length(c1) -1
-	hh = []
-	ht =[]
-	hl = []
-
-	for i in 2:length(c1) 
-		t0 = ifelse(c1[i-1] == 0, 1, c1[i-1])
-		t1 = c1[i]
-		push!(ht, t1)
-		push!(hl, t1-t0+1)
-		push!(hh, mean(tz[t0:t1]))
-	end
-	
-	nsteps, hh, ht, hl 
-end
-
-# ╔═╡ f60f42c5-60a4-41f1-9e99-8fcc47c6327a
-"""
-Returns the setps from the PELT fit. 
-- ic selects the fit to be returned (1 by default, the one with highest cost)
-"""
-function steps_from_pelt(tz, cro; ic=1)
-
-	debug("Calling steps_from_pelt, ic =$(ic)")
-	debug("cro, ic =$(cro)")
-	
-	if length(cro["changepoints"][1] ) <2
-		return [], 0.0, 0.0
-	end
-
-	if length(cro["changepoints"] )< ic
-		warn("ic =$(ic) is larger than fit set, take ic = 1")
-		ic = 1
-	end
-	
-	c1 = cro["changepoints"][ic]
-	pen = cro["penalty"][ic]
-	cost = cro["constrained"][ic]
-
-	values = Float64[]
-	lengths = Int64[]
-	for i in 1:length(c1) -1 
-		t0 = ifelse(c1[i] == 0, 1, c1[i])
-		t1 = c1[i+1]
-		push!(values, mean(tz[t0:t1]))
-		push!(lengths, t1-t0+1)
-	end
-	
-	push!(values, mean(tz[length(c1)+1:length(tz)]))
-	push!(lengths, 1)
-	
-	c1e = c1[end]
-	tze = length(tz)
-
-	debug("c1 = $(c1)")
-	debug("mean from i = $(c1e) to j = $(tze)")
-	debug("mean f= $(mean(tz[c1e:tze]))")
-	
-	push!(values, mean(tz[c1e:tze]))
-	push!(lengths, length(tz) -length(c1)+1)
-
-	vcat([fill(val, len) for (val, len) in zip(values, lengths)]...), pen, cost
-			  	
-		
-end
-
-# ╔═╡ 4a88ebc4-9c04-4e4f-b863-dddfc4c19ec5
-"""
-Fit tracks with PELT
-"""
-function find_fit_pelt(trzs, df; ic =1, si=1, sf=5, ped=0.0)
-	I = Int[]
-	J = Int[]
-    DX = Vector{Vector{Float32}}()
-    FX = Vector{Vector{Float32}}()
-	SC = Vector{Dict{String, Array}}()
-	
-	ng = 0
-
-	df2 = DataFrame(i=Int[], j=Int[], nmol=Int[], bestShot=Float32[], 
-					nstep=Int[], stepHeight=Float32[], stepHeightMin=Float32[], 
-					stepTime=Int[], stepLength=Int[])
-
-	for row in eachrow(df)
-		debug("fitting trace ($(row.i),$(row.i))")
-		
-		tz = trzs[row.i, row.j] 
-
-		debug("mean 5 steps $(mean(tz[1:5]))")
-		
-		cro = pelt_fit(tz; i=si, f=sf)
-		c1 = cro["changepoints"][ic]
-		pfit, pen, cost =  steps_from_pelt(tz, cro; ic=ic)
-		
-		if pen >0 && cost > 0 # fit OK
-			ng+=1
-			push!(I,row.i)
-			push!(J,row.j)
-			push!(DX, tz .-ped)
-			push!(FX, pfit .- ped)
-			push!(SC, cro)
-
-			nsteps, sth, stt, stl = getsteps_pelt(tz,c1)  
-			sthmx = minimum(sth)
-			for k in 1:nsteps
-                push!(df2, (row.i, row.j, ng, cost, nsteps, 
-							sth[k] - ped, sthmx - ped, stt[k], stl[k]))
-			end
-            
-		end
-	end
-	
-	df2, I, J, DX, FX, SC
-end
-
-# ╔═╡ 1be93848-5757-48e6-8d5b-638cb11c4a61
-md"""
-## Functions
-"""
-
-# ╔═╡ e7cb1f63-130c-4e75-af5d-779fc1a4c755
-"""
-    detect_local_maxima(frame::AbstractMatrix{<:Real}; 
-                        threshold::Real=0.0, 
-                        dx::Int=0, dy::Int=0) 
-        -> DataFrame
-
-Detect local maxima in a 2D image, excluding a border of `dx` and `dy` pixels from the search area.
-
-# Arguments
-- `frame`: 2D image matrix (e.g., one frame from an image stack).
-- `threshold`: Minimum intensity a peak must exceed (default: 0.0).
-- `dx`: Margin to exclude on the left and right edges (columns).
-- `dy`: Margin to exclude on the top and bottom edges (rows).
-
-# Returns
-- A `DataFrame` with columns:
-    - `i`: row index of each peak (vertical coordinate)
-    - `j`: column index (horizontal)
-    - `intensity`: value at the peak
-
-# Notes
-- Padding uses `Pad(:replicate)` to preserve edge values, but maxima near the border are excluded.
-"""
-function detect_local_maxima(frame::AbstractMatrix{<:Real}; threshold=0.0, dx=0, dy=0)
-    is_max = mapwindow(x -> x[5] == maximum(x), frame, (3, 3); 
-					   border=Pad(:replicate))
-    candidates = findall(is_max .& (frame .> threshold))
-
-    i_vals = Int[]
-    j_vals = Int[]
-    intensities = Float64[]
-
-    for I in candidates
-        i, j = Tuple(I)
-
-        # Skip peaks near the edge
-        if i ≤ dy || j ≤ dx || i > size(frame, 1) - dy || j > size(frame, 2) - dx
-            continue
-        end
-
-        push!(i_vals, i)
-        push!(j_vals, j)
-        push!(intensities, frame[I])
-    end
-
-    return DataFrame(i = i_vals, j = j_vals, intensity = intensities)
-end
-
 # ╔═╡ 4d0c63a1-89e0-4d89-846c-e1501dbc2696
 begin
 	peaks = detect_local_maxima(imgd[:, :, nframe]; threshold=pthr, dx=0, dy=0)
@@ -618,11 +340,69 @@ begin
 	end
 end
 
+# ╔═╡ 783bbb4f-1bb1-4d57-881d-6a6f3c61e25b
+begin
+	totalI, meanI, stdI = get_stats(imxt; bck=0.0)
+	plot_stats(totalI, meanI, stdI)
+end
+
+# ╔═╡ 57692746-065d-4d75-8a41-7ffafd69550e
+md"""
+- total intensity = $(Float64(sum(totalI)))
+"""
+
+# ╔═╡ 74deedfc-a344-4373-9fc9-db22e83d48ac
+md"""
+#### Get traces from the imst matrix
+"""
+
 # ╔═╡ 1d9ae22b-6cb6-49c4-81e7-b4b740c893a7
 TRZS = build_sparse_traces(imxt, peaks)
 
+# ╔═╡ d92c4660-4950-4adf-aceb-bc94663411c6
+function select_trace(TRZS, df::DataFrame, row::Int) 
+	i = df.i[row]
+	j = df.j[row]
+    trace = TRZS[i, j]  # safe, only defined where needed
+	i,j, trace
+end
+
+# ╔═╡ 02ba78f2-1de5-46d1-a8d6-d6895b2d8771
+peaks
+
+# ╔═╡ 3a8e7300-d209-4e50-ace8-c4b841d71f42
+md"""
+#### Plot traces
+"""
+
+# ╔═╡ 51062b57-15c3-4288-bd14-74afb1bd08d2
+md"""
+## Autostepfinder
+- We call autostepfinder with thr=0, and a guess on the number of interactions. The resulting S-curve can be used to refine the actual interactions. 
+"""
+
+# ╔═╡ 567d39c7-f9ae-453a-8e9a-25672b399264
+md"- select the traze to fit"
+
+# ╔═╡ 1c6507e3-821f-4e07-b41e-b3c106df3671
+@bind ntrz NumberField(0:100, default=1)
+
 # ╔═╡ 6f3a242a-6dff-432a-b30e-1b7ee1d234fc
 i,j, tz = select_trace(TRZS, peaks, ntrz)
+
+# ╔═╡ 415f6577-d2e6-4f7d-b1ee-5e1695ce98e3
+md"""
+- In standard fit, keep thr=0, used as parameter only to show that increasing thr values ruins the fit often
+"""
+
+# ╔═╡ e04c9c53-7ae2-474b-87bc-97bd58f458fa
+@bind thr NumberField(0.0:0.1:1.1, default=0.0)
+
+# ╔═╡ 3ad05178-0420-41af-8b6d-19994428bc5e
+md"- Guess on the number of interactions. Check the value of the S-Curve. The optimal number of interactions should be set to the peak of the S-Curve +1. If the data is not noisy, the best fit will find the minimum number of steps by itself, but noisy data may result in higher steps"
+
+# ╔═╡ 86e3c52c-9119-4d7d-bc7a-dc2f6cd63303
+@bind niter NumberField(0:10, default=3)
 
 # ╔═╡ d1c82dbe-8493-464d-bdac-f505657678d6
 begin
@@ -691,14 +471,16 @@ begin
 	plot(cp1, cp2)
 end
 
+# ╔═╡ 5231948d-5da0-406b-9086-06118b7b4a90
+md"""
+- PELT can run in a range of penalties and provide optimal output
+"""
+
 # ╔═╡ a7b044e2-b219-449e-9759-f308641d719e
 crops_output = @PELT tz Normal(:?, σi) pn1 pn2
 
 # ╔═╡ a1b0eec7-7f29-412f-90c4-8be4c826966f
 elbow_plot(crops_output)
-
-# ╔═╡ 4a950abc-5338-4d6c-9640-f65850b199d8
-crops_output
 
 # ╔═╡ 113a84f8-35d4-47ed-ab00-f7b572094b56
 begin
@@ -713,14 +495,14 @@ begin
 	end
 end
 
+# ╔═╡ 4a950abc-5338-4d6c-9640-f65850b199d8
+crops_output
+
 # ╔═╡ 4f77ae4c-023c-4689-9af3-13272b164833
 cro = pelt_fit(tz)
 
 # ╔═╡ 9d1eb5cc-901a-4a75-8238-4c65cc0283f7
 c1 = cro["changepoints"][2]
-
-# ╔═╡ 9556896d-27eb-4f41-b90f-40bf2ddc77ca
-c1
 
 # ╔═╡ 8c0db24f-5fdf-4815-aca1-91950b169aa5
 pfit, pen, cost = steps_from_pelt(tz, cro; ic=1)
@@ -734,11 +516,23 @@ pfit2, pen2, cost2 = steps_from_pelt(tz, cro; ic=2)
 # ╔═╡ ca1a3028-f27e-4ea9-bbda-45a702823518
 plotfit2(tz, pfit, pfit2; figsize=(1000, 800))
 
-# ╔═╡ 74be4706-3e51-4f16-9717-17518a1324b4
-getsteps_pelt(tz,c1) 
+# ╔═╡ 9556896d-27eb-4f41-b90f-40bf2ddc77ca
+c1
 
-# ╔═╡ 02ba78f2-1de5-46d1-a8d6-d6895b2d8771
-peaks
+# ╔═╡ 77f5c1c3-11bb-4976-af44-1b488f08de6b
+md"""
+## Fits to data
+"""
+
+# ╔═╡ 3115a147-d41b-4ab6-9ad9-0f3b30fb4504
+md"""
+- Set the vaue of threshold
+"""
+
+# ╔═╡ f175508e-f0ea-48a9-ba72-d2e21215de1d
+md"""
+- Set the vaue of iterations (number of steps to be sought in the data)
+"""
 
 # ╔═╡ 5042becb-29c6-447e-84ad-a965a9961992
 begin
@@ -757,6 +551,11 @@ begin
 	"""
 end
 
+# ╔═╡ 60628fe1-6060-4d1f-b7c8-e1d9bd4032a5
+md"""
+## Fits with PELT
+"""
+
 # ╔═╡ b7b1a6bc-aa85-4daa-a77b-e69267d2c633
 begin
 	pdf, pI, pJ, pDX, pFX, pSC  =find_fit_pelt(TRZS, peaks)
@@ -767,6 +566,207 @@ end
 md"""
 - PELT: number of fitted molecules = $(size(pdf)[1])
 """
+
+# ╔═╡ 76f1b23b-b6c4-43a0-9e53-3b2ff553f167
+md"""
+## PELT code
+"""
+
+# ╔═╡ 4a88ebc4-9c04-4e4f-b863-dddfc4c19ec5
+"""
+Fit tracks with PELT
+"""
+function find_fit_pelt(trzs, df; ic =1, si=1, sf=5, ped=0.0)
+	I = Int[]
+	J = Int[]
+    DX = Vector{Vector{Float32}}()
+    FX = Vector{Vector{Float32}}()
+	SC = Vector{Dict{String, Array}}()
+	
+	ng = 0
+
+	df2 = DataFrame(i=Int[], j=Int[], nmol=Int[], bestShot=Float32[], 
+					nstep=Int[], stepHeight=Float32[], stepHeightMin=Float32[], 
+					stepTime=Int[], stepLength=Int[])
+
+	for row in eachrow(df)
+		debug("fitting trace ($(row.i),$(row.i))")
+		
+		tz = trzs[row.i, row.j] 
+
+		debug("mean 5 steps $(mean(tz[1:5]))")
+		
+		cro = pelt_fit(tz; i=si, f=sf)
+		c1 = cro["changepoints"][ic]
+		pfit, pen, cost =  steps_from_pelt(tz, cro; ic=ic)
+		
+		if pen >0 && cost > 0 # fit OK
+			ng+=1
+			push!(I,row.i)
+			push!(J,row.j)
+			push!(DX, tz .-ped)
+			push!(FX, pfit .- ped)
+			push!(SC, cro)
+
+			nsteps, sth, stt, stl = getsteps_pelt(tz,c1)  
+			sthmx = minimum(sth)
+			for k in 1:nsteps
+                push!(df2, (row.i, row.j, ng, cost, nsteps, 
+							sth[k] - ped, sthmx - ped, stt[k], stl[k]))
+			end
+            
+		end
+	end
+	
+	df2, I, J, DX, FX, SC
+end
+
+# ╔═╡ 324eae42-5303-4f16-8437-42e6f558fdb0
+"""
+PELT based fit
+"""
+function pelt_fit(tz::AbstractVector{T}; i::Int=1, f::Int=5) where {T<:Real}
+	# Estimate the std of the distribution for range i:f
+	σi = std(tz[i:f])
+
+	# compute the penalty functions
+	pn1 =log(length(tz))  # minimum penalty (tends to overfit)
+	pn2 = 100 * pn1 # defined the maximum range (PELT will mange optimal)
+	
+	# Cost distribution is normal with known std and unknown mean
+	costfi = NormalMeanSegment(tz, σi)
+
+	# run CROPS
+	crops_output = CROPS(costfi , length(tz), pn1, pn2)
+	#crops_output = @PELT tz Normal(:?, σi) pn1 pn2
+
+		
+end
+
+# ╔═╡ d14e0d6f-4b0d-42f7-8567-d574d5ba6930
+function getsteps_pelt(tz::AbstractVector{<:Real}, c1) 
+    nsteps = length(c1) -1
+	hh = []
+	ht =[]
+	hl = []
+
+	for i in 2:length(c1) 
+		t0 = ifelse(c1[i-1] == 0, 1, c1[i-1])
+		t1 = c1[i]
+		push!(ht, t1)
+		push!(hl, t1-t0+1)
+		push!(hh, mean(tz[t0:t1]))
+	end
+	
+	nsteps, hh, ht, hl 
+end
+
+# ╔═╡ 74be4706-3e51-4f16-9717-17518a1324b4
+getsteps_pelt(tz,c1) 
+
+# ╔═╡ f60f42c5-60a4-41f1-9e99-8fcc47c6327a
+"""
+Returns the setps from the PELT fit. 
+- ic selects the fit to be returned (1 by default, the one with highest cost)
+"""
+function steps_from_pelt(tz, cro; ic=1)
+
+	debug("Calling steps_from_pelt, ic =$(ic)")
+	debug("cro, ic =$(cro)")
+	
+	if length(cro["changepoints"][1] ) <2
+		return [], 0.0, 0.0
+	end
+
+	if length(cro["changepoints"] )< ic
+		warn("ic =$(ic) is larger than fit set, take ic = 1")
+		ic = 1
+	end
+	
+	c1 = cro["changepoints"][ic]
+	pen = cro["penalty"][ic]
+	cost = cro["constrained"][ic]
+
+	values = Float64[]
+	lengths = Int64[]
+	for i in 1:length(c1) -1 
+		t0 = ifelse(c1[i] == 0, 1, c1[i])
+		t1 = c1[i+1]
+		push!(values, mean(tz[t0:t1]))
+		push!(lengths, t1-t0+1)
+	end
+	
+	push!(values, mean(tz[length(c1)+1:length(tz)]))
+	push!(lengths, 1)
+	
+	c1e = c1[end]
+	tze = length(tz)
+
+	debug("c1 = $(c1)")
+	debug("mean from i = $(c1e) to j = $(tze)")
+	debug("mean f= $(mean(tz[c1e:tze]))")
+	
+	push!(values, mean(tz[c1e:tze]))
+	push!(lengths, length(tz) -length(c1)+1)
+
+	vcat([fill(val, len) for (val, len) in zip(values, lengths)]...), pen, cost
+			  	
+		
+end
+
+# ╔═╡ 1be93848-5757-48e6-8d5b-638cb11c4a61
+md"""
+## Functions
+"""
+
+# ╔═╡ e7cb1f63-130c-4e75-af5d-779fc1a4c755
+"""
+    detect_local_maxima(frame::AbstractMatrix{<:Real}; 
+                        threshold::Real=0.0, 
+                        dx::Int=0, dy::Int=0) 
+        -> DataFrame
+
+Detect local maxima in a 2D image, excluding a border of `dx` and `dy` pixels from the search area.
+
+# Arguments
+- `frame`: 2D image matrix (e.g., one frame from an image stack).
+- `threshold`: Minimum intensity a peak must exceed (default: 0.0).
+- `dx`: Margin to exclude on the left and right edges (columns).
+- `dy`: Margin to exclude on the top and bottom edges (rows).
+
+# Returns
+- A `DataFrame` with columns:
+    - `i`: row index of each peak (vertical coordinate)
+    - `j`: column index (horizontal)
+    - `intensity`: value at the peak
+
+# Notes
+- Padding uses `Pad(:replicate)` to preserve edge values, but maxima near the border are excluded.
+"""
+function detect_local_maxima(frame::AbstractMatrix{<:Real}; threshold=0.0, dx=0, dy=0)
+    is_max = mapwindow(x -> x[5] == maximum(x), frame, (3, 3); 
+					   border=Pad(:replicate))
+    candidates = findall(is_max .& (frame .> threshold))
+
+    i_vals = Int[]
+    j_vals = Int[]
+    intensities = Float64[]
+
+    for I in candidates
+        i, j = Tuple(I)
+
+        # Skip peaks near the edge
+        if i ≤ dy || j ≤ dx || i > size(frame, 1) - dy || j > size(frame, 2) - dx
+            continue
+        end
+
+        push!(i_vals, i)
+        push!(j_vals, j)
+        push!(intensities, frame[I])
+    end
+
+    return DataFrame(i = i_vals, j = j_vals, intensity = intensities)
+end
 
 # ╔═╡ 291c9e90-a915-4b35-a134-745ef253a72a
 function plot_traces(TRZS, peaks; ftrz=1, ltrz=9,  figsize=(1500,1500))

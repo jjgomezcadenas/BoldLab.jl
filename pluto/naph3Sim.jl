@@ -220,12 +220,12 @@ end
 
 # ╔═╡ 7280a644-4a95-4e97-83a6-16c1a9332d7c
 begin
-	NM = 1e+2
+	NM = 1e+3
 	N=Int(NM)
 	with_noise=true
-	laser_power = 5mW
-	pbcycles = 1e+5 # photobleaching cycles (nγ abosorbed before pB)
-	dkcycles = 1e+6 # dark cycles (nγ abosorbed before DT)
+	laser_power = 1mW
+	pbcycles = 5e+4 # photobleaching cycles (nγ abosorbed before pB)
+	dkcycles = 1e+5 # dark cycles (nγ abosorbed before DT)
 	tdark    =2s    # time in dark states before decaying to ground
 	file = generate_filename(NM, laser_power, pbcycles, dkcycles, tdark; with_noise=with_noise)
 end
