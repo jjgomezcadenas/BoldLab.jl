@@ -60,3 +60,4 @@ function spectral_fraction(m::Molecule, wl0, wl1)
 
     return sum(y_window) / sum(y_total)
 end
+

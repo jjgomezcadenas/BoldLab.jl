@@ -4,14 +4,15 @@ include("SimpleLogger.jl")
 using .SimpleLogger
 include("dffunctions.jl")
 include("util.jl")
-
 include("setup.jl")
+include("plot_functions.jl")
 include("SampleGenerators.jl")
 include("GenerateData.jl")
 export to_fstr, vect_to_fstr, vect_to_list
 export find_max
 export generate_filename
-export FMolecule, FBMolecule, fm_from_csv
+export plot_traces, plot_frames, plot_traces_stats, plot_stats, plot_traces_h2d
+export FMolecule, FBMolecule, fm_from_csv, plot_molecule, plot_molecule_emission, compute_filter_coverage
 export Laser, Objective, ccd, LaserExcitation, BandFilter, intensity, photon_energy, total_power
 export CMOS, oflash4_eff, nphe, noise
 #export Fov,  Objective, GaussianLaser, gf, gI, ccd

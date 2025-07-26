@@ -12,6 +12,7 @@ using PhysicalConstants.CODATA2018
 using Interpolations
 using DataFrames
 using CSV
+using QuadGK
 
 import Unitful:
     nm, μm, mm, cm, m, km, 
@@ -22,6 +23,8 @@ import Unitful:
     A, N, mol, mmol, V, L, M
 
 barn = 1E-24 * cm^2
+
+
 
 """ A struct representing a Fluorescence Molecule
 - the interpolated pdf and xs functions take a float number pdf(lambda), and xs(lambda)
@@ -57,6 +60,71 @@ struct FBMolecule{T}
 										M, Darks)
     end
 end
+
+
+
+"""
+    compute_filter_coverage(n3f::FMolecule{T}, n3c::FMolecule{T}, filters::Dict{String, <:AbstractVector{<:Real}}) where T
+
+Compute the fraction of emission spectrum area covered by the provided filter ranges
+for two fluorescent molecules. Uses the interpolated emission PDF (`pdf`) from each molecule.
+
+# Arguments
+- `n3f`: First molecule (e.g. NAPH3)
+- `n3c`: Second molecule (e.g. NAPH3-Ba)
+- `filters`: Dictionary mapping filter names to wavelength ranges `[λ_start, λ_end]`
+
+# Returns
+Named tuple with:
+- `NAPH3_coverage`: Fraction of emission within filters for `n3f`
+- `NAPH3_Ba_coverage`: Same for `n3c`
+"""
+function compute_filter_coverage(
+    n3f::FMolecule{T},
+    n3c::FMolecule{T},
+    filters::Dict{String, <:AbstractVector{<:Real}},
+    ; λ_i::Union{Nothing, Real}=nothing, λ_f::Union{Nothing, Real}=nothing
+) where T
+
+    function filter_coverage_fraction(mol::FMolecule{T}) where T
+        λ_spec_range = extrema(mol.em_spectrum[1])
+        λ_start = λ_i === nothing ? λ_spec_range[1] : max(λ_i, λ_spec_range[1])
+        λ_end   = λ_f === nothing ? λ_spec_range[2] : min(λ_f, λ_spec_range[2])
+
+        if λ_start >= λ_end
+            error("Invalid integration range: [$(λ_start), $(λ_end)] is outside emission spectrum")
+        end
+
+        total_area, _ = quadgk(mol.pdf, λ_start, λ_end)
+        covered_area = 0.0
+
+        for (name, range) in filters
+            if name == "Filter12"
+                continue
+            end
+
+            λ_filter_start, λ_filter_end = Float64.(range)
+            λ_min = max(λ_filter_start, λ_start)
+            λ_max = min(λ_filter_end, λ_end)
+
+            if λ_min < λ_max
+                area, _ = quadgk(mol.pdf, λ_min, λ_max)
+                covered_area += area
+            end
+        end
+
+        return covered_area / total_area
+    end
+
+    frac_f = filter_coverage_fraction(n3f)
+    frac_c = filter_coverage_fraction(n3c)
+
+    return (
+        NAPH3_coverage = frac_f,
+        NAPH3_Ba_coverage = frac_c
+    )
+end
+
 
 
 cross_section(fm::FBMolecule, λ::Unitful.Length) = fm.xs(λ) * fm.QY * barn

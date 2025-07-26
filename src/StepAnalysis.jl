@@ -3,7 +3,6 @@ using Revise
 using StatsPlots
 using Statistics
 using StatsBase
-import Measures
 using SparseArrays
 using DataFrames
 
@@ -11,10 +10,10 @@ using NPZ
 
 export get_stats, pixel_trace, traces_stats, traces_h2d, traces_thr
 # get_traces
-export plot_traces_stats, plot_stats, plot_traces_h2d
+
 export plot_steps, plot_trx, fit_data, fit_data3, fit_traces, getsteps, plotfit, plotfit2
 export traces_above_thr, build_traces
-export plot_trace, plot_traces, plot_sdf, plot_frames, find_fit_candidates2
+#export plot_trace, plot_traces, plot_sdf, plot_frames, find_fit_candidates2
 export renumber_nmol!
 
 # plt_ft_trace
@@ -594,78 +593,6 @@ end
 ## Plots
 #####
 
-function plot_frames(imst::AbstractArray{T,3}; nscale::Int=20) where {T<:Real}
-
-	FF = []
-
-	
-    for i in 1:9
-        fn = (i-1) * nscale + i
-		if fn > size(imst)[3]
-			warn("requested frame = $(fn) is to large, set smaller nscale")
-			fn = size(imst)[3] -i
-			warn("set fn = $(fn)")
-		end
-        push!(FF, heatmap(imst[:, :, fn],
-            colorbar=false,  # Optional: removes extra space
-            title="Frame $fn",
-            titlefontsize=7,
-            tickfontsize=6,
-            guidefontsize=6,
-            titlelocation=:left,
-            aspect_ratio=:equal))
-    end
-
-    plot(FF...;
-        layout=(3, 3),
-        size=(900, 900),
-        margin=1.0*Measures.mm,
-        top_margin=1.0*Measures.mm,
-        bottom_margin=1.0*Measures.mm,
-        left_margin=1.0*Measures.mm,
-        right_margin=1.0*Measures.mm,
-        plot_titlefontsize=7,
-        legendfontsize=6)
-end
-
-
-function plot_frames_with_centroids(imst::AbstractArray{T,3}, region_stats::Vector{Vector{Dict{Symbol, Any}}}; 
-	nscale::Int=20) where {T<:Real}
-
-	FF = []
-
-	
-    for i in 1:9
-        fn = (i-1) * nscale + i
-		if fn > size(imst)[3]
-			warn("requested frame = $(fn) is to large, set smaller nscale")
-			fn = size(imst)[3] -i
-			warn("set fn = $(fn)")
-		end
-		frame = imst[:, :, fn]
-		centroids = [r[:centroid] for r in region_stats[fn]]
-	
-		p = heatmap(frame, color=:grays, title="Frame $fn",
-		titlefontsize=7,
-		tickfontsize=6,
-		guidefontsize=6,
-		titlelocation=:left,
-		aspect_ratio=:equal)
-		p = scatter!(p, [c[1] for c in centroids], [c[2] for c in centroids], markersize=4, color=:red)
-        push!(FF, pp)
-    end
-
-    plot(FF...;
-        layout=(3, 3),
-        size=(900, 900),
-        margin=1.0*Measures.mm,
-        top_margin=1.0*Measures.mm,
-        bottom_margin=1.0*Measures.mm,
-        left_margin=1.0*Measures.mm,
-        right_margin=1.0*Measures.mm,
-        plot_titlefontsize=7,
-        legendfontsize=6)
-end
 
 
 
@@ -709,103 +636,6 @@ function plotfit(dataX::AbstractVector{<:Real},
 	plot(plt1, plt2, layout=(2, 1), size=figsize)
 end
 
-
-function plot_traces_stats(xsum, xmean, xstd; meanmx=25.0, summx=1e+3, stdmx=50.0)
-	xmin = 0.0
-	xmax = meanmx
-	data = vec(xmean)
-	filtered = data[(data .>= xmin) .& (data .<= xmax)]
-	edges = range(xmin, xmax; length=101)  # 50 bins
-	p1 = histogram(filtered, bins=collect(edges), title="Mean of traces", xlabel="trace index", ylabel="Frequency")
-
-	xmin = 0.0
-	xmax = summx
-	data = vec(xsum)
-	filtered = data[(data .>= xmin) .& (data .<= xmax)]
-	edges = range(xmin, xmax; length=101)  # 50 bins
-	p2 = histogram(filtered, bins=collect(edges), title="Sum of traces", xlabel="trace index", ylabel="Frequency")
-
-	xmin = 0.0
-	xmax = stdmx
-	data = vec(xstd)
-	filtered = data[(data .>= xmin) .& (data .<= xmax)]
-	edges = range(xmin, xmax; length=101)  # 50 bins
-	p3 = histogram(filtered, bins=collect(edges), title="std of traces", xlabel="trace index", ylabel="Frequency")
-
-	plot(p1, p2, p3;
-     layout=(3, 1),
-     size=(700, 900),
-     margin=5 * Measures.mm,
-     bottom_margin=5 * Measures.mm,
-     top_margin=5 * Measures.mm,
-     plot_titlefontsize=10,
-     guidefontsize=9,
-     tickfontsize=8,
-     legendfontsize=8)
-end
-
-
-function plot_stats(total_intensity, mean_intensity, std_intensity)
-	# Plot mean and std over time
-	n_frames = length(total_intensity)
-	# Create a 3-row, 1-column plot layout
-	plot_layout = @layout [a; b; c]
-
-	p1 = plot(1:n_frames, total_intensity,
-          label="Total Intensity", xlabel="Frame", ylabel="Total",
-          title="Total Intensity Over Time", lw=1)
-
-	p2 = plot(1:n_frames, mean_intensity,
-          label="Mean Intensity", xlabel="Frame", ylabel="Mean",
-          title="Mean Intensity Over Time", lw=1)
-
-	p3 = plot(1:n_frames, std_intensity,
-          label="Std Dev", xlabel="Frame", ylabel="Std",
-          title="Standard Deviation Over Time", lw=1)
-
-	# Combine them in a single figure
-	#plot(p1, p2, p3, layout=plot_layout, size=(700, 900))
-	plot(p1, p2, p3;
-     layout=(3, 1),
-     size=(700, 900),
-     margin=5 * Measures.mm,
-     bottom_margin=5 * Measures.mm,
-     top_margin=5 * Measures.mm,
-     plot_titlefontsize=10,
-     guidefontsize=9,
-     tickfontsize=8,
-     legendfontsize=8)
-end
-
-
-function plot_traces_h2d(xsum, xmean, xstd; bins=50)
-	function h2d(x1, x2, x1l, x2l, xt)
-		# Ensure matrices have the same shape
-		@assert size(x1) == size(x2)
-	
-		# Flatten both to vectors
-		x = vec(x1)
-		y = vec(x2)
-	
-		# 2D histogram
-		histogram2d(x, y;
-		       bins=bins,
-		       xlabel=x1l,
-		       ylabel=x2l,
-		       title=xt)
-	end
-	p1 = h2d(xsum, xstd, "xsum", "xstd", "Sum vs Std")
-	p2 = h2d(xmean, xstd, "mean", "xstd", "Mean vs Std")
-	plot(p1, p2;
-     layout=(1, 2),
-     margin=1 * Measures.mm,
-     bottom_margin=5 * Measures.mm,
-     top_margin=5 * Measures.mm,
-     plot_titlefontsize=8,
-     guidefontsize=9,
-     tickfontsize=6,
-     legendfontsize=8)
-end
 
 
 function plot_steps(TL::Vector{Int}, 
@@ -978,14 +808,14 @@ function plot_trace(df::DataFrame, mol_id::Int)
 end
 
 
-function plot_traces(df::DataFrame, mol_ids::Vector{Int}; lyt=(10,5), size=(1200, 800))
-	P = []
+# function plot_traces(df::DataFrame, mol_ids::Vector{Int}; lyt=(10,5), size=(1200, 800))
+# 	P = []
 	
-	for mol in mol_ids
-		push!(P, plot_trace(df, mol))
-	end
-	plot(P..., layout=lyt, size=size)
-end
+# 	for mol in mol_ids
+# 		push!(P, plot_trace(df, mol))
+# 	end
+# 	plot(P..., layout=lyt, size=size)
+# end
 
 
 function plot_sdf(sdf::DataFrame; nbins=(10,50,50,50), 
