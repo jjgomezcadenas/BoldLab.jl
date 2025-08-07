@@ -115,7 +115,7 @@ function plot_frames(imst::AbstractArray{T,3}; nscale::Int=20) where {T<:Real}
             aspect_ratio=:equal))
     end
 
-    plot(FF...;
+    plt = plot(FF...;
         layout=(3, 3),
         size=(900, 900),
         margin=1.0*Measures.mm,
@@ -125,6 +125,13 @@ function plot_frames(imst::AbstractArray{T,3}; nscale::Int=20) where {T<:Real}
         right_margin=1.0*Measures.mm,
         plot_titlefontsize=7,
         legendfontsize=6)
+    
+    # Display plot when not in Pluto environment
+    if !isdefined(Main, :PlutoRunner)
+        display(plt)
+    end
+    
+    return plt
 end
 
 

@@ -151,6 +151,9 @@ begin
 
 end
 
+# ╔═╡ 60b62b64-a6f0-40c8-89e5-f534103fc1ae
+subdirs
+
 # ╔═╡ 6c7fb057-3c32-46c1-8a1d-6d2dae824a02
 @bind folder_week Select(subdirs)
 
@@ -165,6 +168,9 @@ begin
 	@bind folder_day Select(subdirs2) 
 end
 
+# ╔═╡ 901e9d4f-e8c5-4c8f-9cec-9f786579dfa6
+subdirs2
+
 # ╔═╡ a841c738-f6e3-4cc8-8ac0-f7d328d4677b
 subdirs2
 
@@ -176,24 +182,21 @@ begin
 end
 
 # ╔═╡ bbf32af5-9175-4c9e-b71e-66e00a93b8f9
-subdirs3
+
 
 # ╔═╡ d5d957ad-89f3-4875-9ea2-91a0409d55ee
 begin
 	path_scan = joinpath(path_day, folder_scan)
 	subdirs4, _, _ = scan_level(path_scan)
+	sorted_filters = sort(subdirs4, by = x -> parse(Int, x[7:end]))
 	if length(subdirs4) >0
-		@bind folder_field Select(subdirs4) 
+		@bind folder_field Select(sorted_filters) 
 	else
 		imf = path_scan
 		folder_field = "" 
 	end
 	
 end
-
-# ╔═╡ d825fc83-e398-4319-a71f-ea67b97cf08f
-
-
 
 # ╔═╡ e0040358-fab4-489d-8e4f-fa7128841ded
 function find_filter(imf, Filters)
@@ -324,7 +327,7 @@ begin
 	#img_denoised_stack = imfilter.(eachslice(imgbsub, dims=3), Ref(k))
 	#imgd = cat(img_denoised_stack...; dims=3)
 	imgd = denoise_stack(imgbsub; σ=σ_denoise)
-	plot_frames(imgd, nscale=1)
+	plot_frames(imgd, nscale=10)
 end
 
 # ╔═╡ fd39234f-6c62-42e3-bde9-9a9e565fa519
@@ -333,7 +336,7 @@ begin
 
 	hibsf2, pibsf2 = step_hist(vi2m[vi2m.>icut];
               nbins=50,
-              xlim=(0.0, 1000.0),
+              xlim=(0.0, 250.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
@@ -471,9 +474,8 @@ begin
 	#min_area = 10
 	peaks = detect_local_maxima(imgd[:, :, nframe]; threshold=pthr, dx=0, dy=0)
 	md"""
-	- Search for local maxima
+	- Search for local maxima in frame $(nframe)
 	- found $(size(peaks)[1]) molecule candidates 
-	- in frame $(nframe) 
 	- with thr = $(pthr)
 	"""
 end
@@ -485,7 +487,7 @@ peaks
 begin
 hisp, pisp = step_hist(peaks.intensity;
               nbins=20,
-              xlim=(0.0, 1000.0),
+              xlim=(0.0, 200.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
@@ -495,6 +497,9 @@ hisp, pisp = step_hist(peaks.intensity;
 	
 #histogram(peaks.intensity, bins=20)
 end
+
+# ╔═╡ 3bce67c9-3742-47fe-9a86-9dfb9eff793c
+maximum(peaks.intensity)
 
 # ╔═╡ 80068e3e-e9c4-47c5-b6cf-e10ff2de19ea
 begin
@@ -536,6 +541,21 @@ if fitPELT
 	pdf, pI, pJ, pDX, pFX, pSC  =find_fit_pelt(TRZS, peaks)
 	pdf
 end
+
+# ╔═╡ 3237d004-5692-47cb-b618-c42c26318777
+begin
+	nframe2 = nframe + 10  
+	#min_area = 10
+	peaks2 = detect_local_maxima(imgd[:, :, nframe2]; threshold=pthr, dx=0, dy=0)
+	md"""
+	- Search for local maxima in frame $(nframe2)
+	- found $(size(peaks2)[1]) molecule candidates 
+	- with thr = $(pthr)
+	"""
+end
+
+# ╔═╡ 4299cff5-6c99-4e97-8056-64e5b2d1e990
+peaks2
 
 # ╔═╡ 291c9e90-a915-4b35-a134-745ef253a72a
 
@@ -924,7 +944,7 @@ end
 
 # ╔═╡ d68e0b2c-25e4-4b79-be90-fb1c3149f33d
 if fitEXP
-	plotsdf_exp(dfe, amax=200.0, taumax=30.0, cmax=20.0, chi2max=50.0)
+	plotsdf_exp(dfe, amax=200.0, taumax=100.0, cmax=200.0, chi2max=200.0)
 end
 
 # ╔═╡ d25301bb-0fa2-4648-a76c-fc7d7218cbde
@@ -985,13 +1005,14 @@ end
 # ╠═f724b5fc-b506-4442-b6b0-92b8fc9ad16b
 # ╠═95804d28-2720-4a5a-8003-05b1bc86f00c
 # ╠═89ac3496-c36a-4472-a21c-bf4fca5e79d6
+# ╠═60b62b64-a6f0-40c8-89e5-f534103fc1ae
+# ╠═901e9d4f-e8c5-4c8f-9cec-9f786579dfa6
 # ╠═6c7fb057-3c32-46c1-8a1d-6d2dae824a02
 # ╠═626abdf3-401b-417d-97f2-23982570891f
 # ╠═a841c738-f6e3-4cc8-8ac0-f7d328d4677b
 # ╠═b7903ec3-c815-4574-9018-9c4202cf95ef
 # ╠═bbf32af5-9175-4c9e-b71e-66e00a93b8f9
 # ╠═d5d957ad-89f3-4875-9ea2-91a0409d55ee
-# ╠═d825fc83-e398-4319-a71f-ea67b97cf08f
 # ╠═e0040358-fab4-489d-8e4f-fa7128841ded
 # ╠═f8ea2fe9-20af-4283-924f-d13729c4eca0
 # ╠═2c50b5b4-a227-423a-bd4b-812fb4cd425c
@@ -1009,7 +1030,10 @@ end
 # ╠═fd39234f-6c62-42e3-bde9-9a9e565fa519
 # ╠═4d0c63a1-89e0-4d89-846c-e1501dbc2696
 # ╠═60b16840-2530-41df-bbc1-12b1066e9829
+# ╠═3237d004-5692-47cb-b618-c42c26318777
+# ╠═4299cff5-6c99-4e97-8056-64e5b2d1e990
 # ╠═7927a18c-6942-42bd-ac6b-2ff720b155d0
+# ╠═3bce67c9-3742-47fe-9a86-9dfb9eff793c
 # ╠═62da10f6-0d5c-41c0-a985-d15c946f5b84
 # ╠═12960d51-135c-47cd-ab86-f2ab5bacef08
 # ╠═d34b9105-09d4-4876-842d-bcf74249cca9
