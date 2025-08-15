@@ -4,18 +4,6 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    return quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
-end
-
 # ╔═╡ 1a2b3c4d-4b5f-11ef-2345-678901bcdef0
 begin
 	using CSV
@@ -49,6 +37,9 @@ This notebook provides interactive visualization and analysis of the NAPH batch 
 ---
 """
 
+# ╔═╡ 27950da6-daa2-4be4-995b-50ed617112ce
+SUMMARY_DIR
+
 # ╔═╡ 3c4d5e6f-4b5f-11ef-4567-890123def012
 begin
 	# Load master summary data
@@ -69,276 +60,189 @@ begin
 		"FakeA3_pre"
 	]
 	signal_samples = [
-		"SE0_pre_A1",
-		"SE0_pre_B1",
-		"SE0_pre_C1", 
-		"SE1_A1",
-		"SE1_B1",
-		"SE1_C1"
-	]
+    "SE0_pre_A1",    # NAPH3SIL 1e-6M pre evaporation, measured at day 0 
+    "SE1_ba0.1m_A1", # NAPH3SIL 1e-6M after evaporation of 0.1 monolayer, measured on day+1
+    "SE0_pre_B1",    # NAPH3SIL 1e-7M pre evaporation, measured at day 0
+    "SE1_ba0.1m_B1", # NAPH3SIL 1e-7M after evaporation of 0.1 monolayer, measured on day+1
+    "SE0_pre_B2",    # NAPH3SIL 1e-7M pre evaporation, measured at day 0, (replicate 2)
+    "SE1_ba0.1m_B2", # NAPH3SIL 1e-7M after evaporation of 0.1 monolayer, measured on day+1 (replicate 2)
+    "SE0_pre_B3",    # NAPH3SIL 1e-7M pre evaporation, measured at day 0, (replicate 3)
+    "SE1_ba0.2m_B3", # NAPH3SIL 1e-7M after evaporation of 0.2 monolayer, measured on day+1 (replicate 3)
+    "SE0_pre_C1",    # NAPH3SIL 1e-8M pre evaporation, measured at day 0
+    "SE1_ba0.1m_C1", # NAPH3SIL 1e-8M after evaporation of 0.1 monolayer, measured on day+1
+    "SE0_pre_C2",    # NAPH3SIL 1e-8M pre evaporation, measured at day 0, (replicate 2)
+    "SE1_ba0.1m_C2", # NAPH3SIL 1e-8M after evaporation of 0.1monolayer, measured at day 1, (replicate 2)
+    "SE0_pre_C3",    # NAPH3SIL 1e-8M pre evaporation, measured at day 0, (replicate 3)
+    "SE2_ba0.2m_C3", # NAPH3SIL 1e-8M after evaporation of 0.2monolayer, measured at day 2, (replicate 3)
+]
 	
 	md"Data loaded: $(nrow(master_df)) total records"
 end
 
+# ╔═╡ ba4ec130-ed87-4ee6-964f-56af8073fe6f
+md"""
+### Filters
+"""
+
+# ╔═╡ f2b2a453-ee9e-409b-9b3c-3c22400cc9dc
+# Filter definitions
+ActiveFilters = Dict(
+    "Filter3"  => mean([500.0, 520.0]),
+    "Filter4"  => mean([524.0, 544.0]),
+    "Filter5"  => mean([554.0, 568.0]),
+    "Filter6"  => mean([576.0, 596.0]),
+    "Filter7"  => mean([605.0, 625.0]),
+    "Filter8"  => mean([633.0, 647.0]),
+    "Filter12" => mean([500.0, 800.0])
+)
+
 # ╔═╡ 4d5e6f70-4b5f-11ef-5678-901234ef0123
 md"""
-## Data Tables
+### Signal Data
 
-Select sample type and filter to view detailed data:
 """
 
-# ╔═╡ 5e6f7081-4b5f-11ef-6789-012345f01234
-begin
-	# Sample type selector
-	@bind selected_sample_type Select([
-		"Fake" => "Fake Samples",
-		"Signal" => "Signal Samples"
-	])
-end
+# ╔═╡ 86aca876-1aba-41c8-b8d4-e601a7360691
+signal_data
 
-# ╔═╡ 708192a3-4b5f-11ef-8901-234567123456
-begin
-	# Filter selector
-	@bind selected_filter Select([
-		"Filter3" => "Filter 3",
-		"Filter4" => "Filter 4", 
-		"Filter5" => "Filter 5",
-		"Filter6" => "Filter 6",
-		"Filter7" => "Filter 7",
-		"Filter8" => "Filter 8"
-	])
-end
+# ╔═╡ d5b805da-6d0c-43e5-a896-3dbe78dcd783
+signal_samples
 
-# ╔═╡ 6f708192-4b5f-11ef-7890-123456012345
-begin
-	# Load and display the selected table
-	function load_table_data(sample_type, filter_name)
-		if sample_type == "Fake"
-			file_prefix = "Evap_test_Fakes"
-		else
-			file_prefix = "Evap_test_NAPH"
-		end
-		
-		csv_file = "$(file_prefix)_$(filter_name).csv"
-		file_path = joinpath(SUMMARY_DIR, csv_file)
-		
-		if isfile(file_path)
-			return CSV.read(file_path, DataFrame)
-		else
-			# Return empty DataFrame with correct structure if file doesn't exist
-			return DataFrame(
-				Sample = String[],
-				Total_Intensity = Float64[],
-				N_Peaks = Int[],
-				N_Molecules_PELT = Int[]
-			)
-		end
-	end
-	
-	# Load selected table
-	selected_table = load_table_data(selected_sample_type, selected_filter)
-	
-	md"""
-	### $(selected_sample_type) Samples - $(selected_filter)
-	
-	**$(nrow(selected_table))** samples in this dataset
-	"""
-end
+# ╔═╡ 582d0a39-bdd6-41b1-82a4-026df06e7237
+#s0_pre_a1 = select_sample(signal_data, "SE0_pre_A1")
 
-# ╔═╡ 7a8b9c0d-4b5f-11ef-8901-234567890123
-begin
-	# Display the table with formatted intensities for better readability
-	if nrow(selected_table) > 0
-		display_table = copy(selected_table)
-		
-		# Format intensity values for display (scientific notation)
-		display_table.Total_Intensity = [@sprintf("%.2e", x) for x in display_table.Total_Intensity]
-		
-		display_table
-	else
-		md"**No data available for this selection**"
-	end
-end
+# ╔═╡ 4782a0f5-1bc4-4269-baf8-cff604b380f0
+#get_filters_nm(s0_pre_a1, ActiveFilters)
 
-# ╔═╡ 8192a3b4-4b5f-11ef-9012-345678234567
+# ╔═╡ 8e418a0b-973a-4949-a0b5-9fe8c838a3b6
+#get_numberof_molecules(s0_pre_a1; molecule_label="N_Molecules_PELT")
+
+# ╔═╡ 7ffb7a70-a05c-4f0b-b007-ca0e499cbc1d
 md"""
-## Visualization Controls
+### Fake Data
 
-Select metrics to visualize:
 """
 
-# ╔═╡ 92a3b4c5-4b5f-11ef-0123-456789345678
-@bind plot_metric Select([
-	"Total_Intensity" => "Total Intensity",
-	"N_Peaks" => "Number of Peaks", 
-	"N_Molecules_PELT" => "PELT Molecules"
-])
+# ╔═╡ c33cad21-9ae4-4e13-bfe6-2c63d217b37c
+fake_data
 
-# ╔═╡ 93a4b5c6-4b5f-11ef-1234-567890123456
+# ╔═╡ 6719e653-843e-4469-b8f0-807838febd67
+fake_samples
+
+# ╔═╡ 468ca6e7-d520-4b63-8bd4-429d3bd6e7cd
 md"""
-Select scale for y-axis:
+## Functions
 """
 
-# ╔═╡ 94a5b6c7-4b5f-11ef-2345-678901234567
-@bind y_scale Select([
-	"linear" => "Linear Scale",
-	"log" => "Log Scale"
-])
-
-# ╔═╡ a3b4c5d6-4b5f-11ef-1234-567890456789
-md"""
-## Sample Group Plots
-
-Grouped by sample type - $(plot_metric) across filters:
-"""
-
-# ╔═╡ b4c5d6e7-4b5f-11ef-2345-678901567890
-begin
-	function create_combined_plot(data1, sample1, data2, sample2, metric, plot_title, scale_type)
-		"""Create a plot combining two related samples across all filters"""
-		
-		# Extract data for both samples
-		filter_values1 = []
-		filter_values2 = []
-		filter_names = []
-		
-		for filter_name in filters
-			sample1_data = filter(row -> (row.Sample == sample1) & (row.Filter == filter_name), data1)
-			sample2_data = filter(row -> (row.Sample == sample2) & (row.Filter == filter_name), data2)
-			
-			if nrow(sample1_data) > 0 && nrow(sample2_data) > 0
-				val1 = sample1_data[1, Symbol(metric)]
-				val2 = sample2_data[1, Symbol(metric)]
-				
-				# For log scale, ensure positive values (add small epsilon if needed)
-				if scale_type == "log"
-					val1 = max(val1, 1e-10)
-					val2 = max(val2, 1e-10)
-				end
-				
-				push!(filter_values1, val1)
-				push!(filter_values2, val2)
-				push!(filter_names, filter_name)
-			end
-		end
-		
-		if length(filter_values1) == 0
-			return plot(title="$plot_title - No Data", size=(400, 300))
-		end
-		
-		# Create plot with appropriate scale
-		if scale_type == "log"
-			p = plot(title=plot_title, 
-					xlabel="Filter",
-					ylabel=metric,
-					yscale=:log10,
-					size=(400, 300),
-					xticks=(1:length(filter_names), filter_names),
-					xrotation=45,
-					margin=4Plots.mm,
-					legend=:topright,
-					titlefontsize=12,
-					labelfontsize=9,
-					tickfontsize=8)
-		else
-			p = plot(title=plot_title, 
-					xlabel="Filter",
-					ylabel=metric,
-					size=(400, 300),
-					xticks=(1:length(filter_names), filter_names),
-					xrotation=45,
-					margin=4Plots.mm,
-					legend=:topright,
-					titlefontsize=12,
-					labelfontsize=9,
-					tickfontsize=8)
-		end
-		
-		# Plot both lines with different colors
-		plot!(p, 1:length(filter_values1), filter_values1,
-			  linewidth=2,
-			  marker=:circle,
-			  markersize=4,
-			  color=:blue,
-			  label=replace(sample1, "_" => " "))
-		
-		plot!(p, 1:length(filter_values2), filter_values2,
-			  linewidth=2,
-			  marker=:square,
-			  markersize=4,
-			  color=:red,
-			  label=replace(sample2, "_" => " "))
-		
-		return p
+# ╔═╡ 67e6aea5-69b3-4f28-87da-39d73689e933
+function select_sample(df, sample_name)
+	gdf = groupby(df,"Sample")
+	for group in gdf
+		 if group.Sample[1] == sample_name
+			 return group
+		 end
 	end
-	
-	# Define sample pairs and create 6 combined plots
-	combined_plots = [
-		# Fake samples (pre vs monolayer)
-		create_combined_plot(fake_data, "FakeA1_pre", fake_data, "FakeA1_0.5monolayer", plot_metric, "Fake A1", y_scale),
-		create_combined_plot(fake_data, "FakeA2_pre", fake_data, "FakeA2_0.25monolayer", plot_metric, "Fake A2", y_scale),
-		create_combined_plot(fake_data, "FakeA3_pre", fake_data, "FakeA3_0.1monolayer", plot_metric, "Fake A3", y_scale),
-		
-		# Signal samples (SE0 vs SE1)
-		create_combined_plot(signal_data, "SE0_pre_A1", signal_data, "SE1_A1", plot_metric, "Sample A1", y_scale),
-		create_combined_plot(signal_data, "SE0_pre_B1", signal_data, "SE1_B1", plot_metric, "Sample B1", y_scale),
-		create_combined_plot(signal_data, "SE0_pre_C1", signal_data, "SE1_C1", plot_metric, "Sample C1", y_scale)
-	]
-	
-	# Display all 6 plots in a 3x2 grid
-	plot(combined_plots..., layout=(3,2), size=(1000, 900))
+	println("sample ", sample_name, "not found")
 end
 
-
-# ╔═╡ e7f8091a-4b5f-11ef-5678-901234890123
-md"""
-## Statistical Summary
-
-### Key Statistics by Type and Metric
-"""
-
-# ╔═╡ f8091a2b-4b5f-11ef-6789-012345901234
-begin
-	function calculate_statistics(data, metric_col)
-		"""Calculate summary statistics"""
-		values = data[:, Symbol(metric_col)]
-		valid_values = filter(x -> !ismissing(x) && x >= 0, values)
-		
-		if length(valid_values) > 0
-			return (
-				mean = round(mean(valid_values), digits=2),
-				std = round(std(valid_values), digits=2),
-				median = round(median(valid_values), digits=2),
-				min_val = minimum(valid_values),
-				max_val = maximum(valid_values),
-				count = length(valid_values)
-			)
-		else
-			return (mean=0, std=0, median=0, min_val=0, max_val=0, count=0)
-		end
+# ╔═╡ 8861954b-df9f-4bd6-a2c5-2ea2421efde8
+function get_filters_nm(sdf, af)
+	fn = []
+	filters = collect(sdf.Filter)
+	for filter in filters 
+		push!(fn, af[filter])
 	end
+	fn
+end
+
+# ╔═╡ 54489a71-36ec-4321-a78c-c860d61a4455
+function get_numberof_molecules(sdf; molecule_label="N_Molecules_PELT")
+	collect(sdf[!, molecule_label])
+end
+
+# ╔═╡ 7fe066bb-65a2-44af-b752-89e9458234b3
+function plot_sample(df; sample_name = "A1: NAPH: 1e-6", 
+					 sample_pre="SE0_pre_A1", 
+					 sample_evap="SE1_ba0.1m_A1", 
+					 molecule_label="N_Molecules_PELT")
 	
-	# Calculate statistics for both types
-	fake_stats = calculate_statistics(fake_data, plot_metric)
-	signal_stats = calculate_statistics(signal_data, plot_metric)
+	spre = select_sample(df, sample_pre)
+	sevap = select_sample(df, sample_evap)
+	filters = get_filters_nm(spre, ActiveFilters)
+	npre = get_numberof_molecules(spre; molecule_label)
+	nevap = get_numberof_molecules(sevap; molecule_label)
+
 	
-	md"""
-	### Statistics for $(plot_metric)
+	s1 = scatter(filters, npre,
+            	marker=:circle,
+            	markersize=5,
+            	color=:blue, label=sample_pre)
+	p1 = plot!(s1, filters, npre,linewidth=1, color="blue")
+	s2 = scatter!(p1, filters, nevap,
+            	marker=:square,
+            	markersize=5,
+            	color=:red, label=sample_evap)
+	plot!(title=sample_name, s2, filters, nevap,linewidth=1, color="red",
+	xlabel="Filter",
+    ylabel=molecule_label, titlefontsize=12)
+end
+
+# ╔═╡ fcdd607e-3c28-44fa-a294-d6a1a70bc467
+let
+	pa1 = plot_sample(signal_data; sample_name = "A1: NAPH: 1e-6: Evap=0.1 mL", 
+					   sample_pre="SE0_pre_A1", 		
+					   sample_evap="SE1_ba0.1m_A1",
+					   molecule_label="N_Molecules_PELT") 
+	pb1 = plot_sample(signal_data; sample_name = "B1: NAPH: 1e-7: Evap=0.1 mL", 
+					   sample_pre="SE0_pre_B1", 		
+					   sample_evap="SE1_ba0.1m_B1",
+					   molecule_label="N_Molecules_PELT")
+	pc1 = plot_sample(signal_data; sample_name = "C1: NAPH: 1e-8: Evap=0.1 mL", 
+					   sample_pre="SE0_pre_C1", 		
+					   sample_evap="SE1_ba0.1m_C1",
+					   molecule_label="N_Molecules_PELT")
+	plot(pa1,pb1, pc1, layout=(1,3), size=(900, 500))
 	
-	**Fake Samples:**
-	- Mean: $(fake_stats.mean) ± $(fake_stats.std)
-	- Median: $(fake_stats.median)
-	- Range: $(fake_stats.min_val) - $(fake_stats.max_val)
-	- Count: $(fake_stats.count)
+end
+
+# ╔═╡ 166a3807-9c25-4592-a78c-83d786c972c2
+let
+	pb1 = plot_sample(signal_data; sample_name = "B2: NAPH: 1e-7: Evap=0.1 mL", 
+					   sample_pre="SE0_pre_B2", 		
+					   sample_evap="SE1_ba0.1m_B2",
+					   molecule_label="N_Molecules_PELT") 
+	pc1 = plot_sample(signal_data; sample_name = "C2: NAPH: 1e-8: Evap=0.1 mL", 
+					   sample_pre="SE0_pre_C2", 		
+					   sample_evap="SE1_ba0.1m_C2",
+					   molecule_label="N_Molecules_PELT")
+	pb2 = plot_sample(signal_data; sample_name = "B3: NAPH: 1e-7: Evap=0.2 mL", 
+					   sample_pre="SE0_pre_B3", 		
+					   sample_evap="SE1_ba0.2m_B3",
+					   molecule_label="N_Molecules_PELT")
+	pc2 = plot_sample(signal_data; sample_name = "C3: NAPH: 1e-8: Evap=0.2 mL", 
+					   sample_pre="SE0_pre_C3", 		
+					   sample_evap="SE2_ba0.2m_C3",
+					   molecule_label="N_Molecules_PELT")
+	plot(pb1, pc1, pb2, pc2, layout=(2,2), size=(1000, 600))
 	
-	**Signal Samples:**
-	- Mean: $(signal_stats.mean) ± $(signal_stats.std) 
-	- Median: $(signal_stats.median)
-	- Range: $(signal_stats.min_val) - $(signal_stats.max_val)
-	- Count: $(signal_stats.count)
+end
+
+# ╔═╡ ad8d500d-4f0d-4290-8560-0b1bb9d5e2df
+let
+	pa1 = plot_sample(fake_data; sample_name = "A1: Fake: 0.5 mL", 
+					   sample_pre="FakeA1_pre", 		
+					   sample_evap="FakeA1_0.5monolayer",
+					   molecule_label="N_Molecules_PELT") 
+	pb1 = plot_sample(fake_data; sample_name = "A1: Fake: 0.25 mL", 
+					   sample_pre="FakeA2_pre", 		
+					   sample_evap="FakeA2_0.25monolayer",
+					   molecule_label="N_Molecules_PELT")
+	pc1 = plot_sample(fake_data; sample_name = "A1: Fake: 0.1 mL", 
+					   sample_pre="FakeA3_pre", 		
+					   sample_evap="FakeA3_0.1monolayer",
+					   molecule_label="N_Molecules_PELT")
+	plot(pa1,pb1, pc1, layout=(1,3), size=(1000, 500))
 	
-	**Ratio (Signal/Fake):** $(round(signal_stats.mean / max(fake_stats.mean, 1e-10), digits=2))
-	"""
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -1606,19 +1510,26 @@ version = "1.9.2+0"
 # ╔═╡ Cell order:
 # ╟─d5a4b4a0-4b5f-11ef-2f83-c9e8e6bb3f8e
 # ╠═1a2b3c4d-4b5f-11ef-2345-678901bcdef0
+# ╠═27950da6-daa2-4be4-995b-50ed617112ce
 # ╠═3c4d5e6f-4b5f-11ef-4567-890123def012
-# ╟─4d5e6f70-4b5f-11ef-5678-901234ef0123
-# ╟─5e6f7081-4b5f-11ef-6789-012345f01234
-# ╟─708192a3-4b5f-11ef-8901-234567123456
-# ╟─6f708192-4b5f-11ef-7890-123456012345
-# ╟─7a8b9c0d-4b5f-11ef-8901-234567890123
-# ╟─8192a3b4-4b5f-11ef-9012-345678234567
-# ╠═92a3b4c5-4b5f-11ef-0123-456789345678
-# ╟─93a4b5c6-4b5f-11ef-1234-567890123456
-# ╠═94a5b6c7-4b5f-11ef-2345-678901234567
-# ╟─a3b4c5d6-4b5f-11ef-1234-567890456789
-# ╠═b4c5d6e7-4b5f-11ef-2345-678901567890
-# ╟─e7f8091a-4b5f-11ef-5678-901234890123
-# ╠═f8091a2b-4b5f-11ef-6789-012345901234
+# ╠═ba4ec130-ed87-4ee6-964f-56af8073fe6f
+# ╠═f2b2a453-ee9e-409b-9b3c-3c22400cc9dc
+# ╠═4d5e6f70-4b5f-11ef-5678-901234ef0123
+# ╠═86aca876-1aba-41c8-b8d4-e601a7360691
+# ╠═d5b805da-6d0c-43e5-a896-3dbe78dcd783
+# ╠═582d0a39-bdd6-41b1-82a4-026df06e7237
+# ╠═4782a0f5-1bc4-4269-baf8-cff604b380f0
+# ╠═8e418a0b-973a-4949-a0b5-9fe8c838a3b6
+# ╟─fcdd607e-3c28-44fa-a294-d6a1a70bc467
+# ╟─166a3807-9c25-4592-a78c-83d786c972c2
+# ╠═7ffb7a70-a05c-4f0b-b007-ca0e499cbc1d
+# ╠═c33cad21-9ae4-4e13-bfe6-2c63d217b37c
+# ╠═6719e653-843e-4469-b8f0-807838febd67
+# ╠═ad8d500d-4f0d-4290-8560-0b1bb9d5e2df
+# ╠═468ca6e7-d520-4b63-8bd4-429d3bd6e7cd
+# ╠═67e6aea5-69b3-4f28-87da-39d73689e933
+# ╠═8861954b-df9f-4bd6-a2c5-2ea2421efde8
+# ╠═54489a71-36ec-4321-a78c-c860d61a4455
+# ╠═7fe066bb-65a2-44af-b752-89e9458234b3
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

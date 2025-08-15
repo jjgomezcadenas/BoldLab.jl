@@ -63,13 +63,22 @@ fake_samples = [
 ]
 
 signal_samples = [
-    "SE0_pre_A1",
-    "SE0_pre_B1",
-    "SE0_pre_C1",
-    "SE1_A1",
-    "SE1_B1",
-    "SE1_C1"
+    "SE0_pre_A1",    # NAPH3SIL 1e-6M pre evaporation, measured at day 0 
+    "SE1_ba0.1m_A1", # NAPH3SIL 1e-6M after evaporation of 0.1 monolayer, measured on day+1
+    "SE0_pre_B1",    # NAPH3SIL 1e-7M pre evaporation, measured at day 0
+    "SE1_ba0.1m_B1", # NAPH3SIL 1e-7M after evaporation of 0.1 monolayer, measured on day+1
+    "SE0_pre_B2",    # NAPH3SIL 1e-7M pre evaporation, measured at day 0, (replicate 2)
+    "SE1_ba0.1m_B2", # NAPH3SIL 1e-7M after evaporation of 0.1 monolayer, measured on day+1 (replicate 2)
+    "SE0_pre_B3",    # NAPH3SIL 1e-7M pre evaporation, measured at day 0, (replicate 3)
+    "SE1_ba0.2m_B3", # NAPH3SIL 1e-7M after evaporation of 0.2 monolayer, measured on day+1 (replicate 3)
+    "SE0_pre_C1",    # NAPH3SIL 1e-8M pre evaporation, measured at day 0
+    "SE1_ba0.1m_C1", # NAPH3SIL 1e-8M after evaporation of 0.1 monolayer, measured on day+1
+    "SE0_pre_C2",    # NAPH3SIL 1e-8M pre evaporation, measured at day 0, (replicate 2)
+    "SE1_ba0.1m_C2", # NAPH3SIL 1e-8M after evaporation of 0.1monolayer, measured at day 1, (replicate 2)
+    "SE0_pre_C3",    # NAPH3SIL 1e-8M pre evaporation, measured at day 0, (replicate 3)
+    "SE2_ba0.2m_C3", # NAPH3SIL 1e-8M after evaporation of 0.2monolayer, measured at day 2, (replicate 3)
 ]
+
 
 # Filters to process
 filters_to_process = ["Filter3", "Filter4", "Filter5", "Filter6", "Filter7", "Filter8"]
