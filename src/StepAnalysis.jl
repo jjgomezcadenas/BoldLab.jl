@@ -1,6 +1,6 @@
 module StepAnalysis
 using Revise
-using StatsPlots
+using Plots
 using Statistics
 using StatsBase
 using SparseArrays
@@ -367,6 +367,10 @@ function getsteps(arr::AbstractVector{T}; atol=1e-8) where {T<:Real}
 
     return constant_values, segment_starts, segment_lengths
 end
+
+
+
+
 
 
 """

@@ -1,17 +1,19 @@
 module StepPreprocessing 
 using Revise
-using StatsPlots
+using Plots
 using Statistics
 using StatsBase
 import Measures
 using SparseArrays
 using DataFrames
-using Images, FileIO, ImageIO, ImageView, ImageSegmentation, ImageMorphology
+using Images, FileIO, ImageIO, ImageView
+# The following functions are available through Images:
+# label_components, strel_diamond (from ImageMorphology)
 
 using NPZ
 
 export subtract_background_from_stack, compute_background_from_stack, denoise_stack
-export filter_regions_in_stack, plot_frames_with_centroids, detections_dataframe
+export filter_regions_in_stack, detections_dataframe
 export build_sparse_traces, unique_i_j_across_t
 
 

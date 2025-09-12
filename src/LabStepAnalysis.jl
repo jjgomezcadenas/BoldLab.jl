@@ -1,20 +1,49 @@
 module LabStepAnalysis
-using Revise
-using StatsPlots
 using Statistics
-using StatsBase
-import Measures
 using SparseArrays
 using DataFrames
 using DelimitedFiles
 using Images, FileIO, ImageIO
 
-using NPZ
-
 
 export load_tif_stack_int16, get_tif_image, tif_to_matrix
 export regularize_img, regularize_stack!
-# plt_ft_trace
+
+
+# Internal helper function to process TIFF files
+function _process_tif_files(file_paths::Vector{Tuple{String,Int}}; pedestal=1600)
+    # Load each, scale to Int16, then convert to Float32
+    max16 = typemax(UInt16)
+    frames = Vector{Array{Float32,2}}(undef, length(file_paths))
+    
+    for (idx, (fpath, _)) in enumerate(file_paths)
+        img_gray = load(fpath)                           # Gray{N0f16} array
+        img_f     = Float32.(img_gray)                   # [0,1] floats
+        img_i16   = UInt16.(round.(max16 .* img_f)) .- pedestal     # [0..65535] UInt16 minus pedestal
+        frames[idx] = Float32.(img_i16)                  # cast to Float32
+    end
+    
+    # Stack into a 3-D array
+    return cat(frames...; dims = 3)
+end
+
+# Internal helper to parse and sort TIFF files by their numeric suffix
+function _parse_and_sort_tifs(files_with_paths::Vector{Tuple{String,String}})
+    numbered = Tuple{String,Int}[]
+    
+    for (fname, fpath) in files_with_paths
+        if occursin('_', fname)
+            # Extract number after last underscore
+            parts = split(fname, "_")
+            num_str = splitext(parts[end])[1]
+            push!(numbered, (fpath, parse(Int, num_str)))
+        end
+    end
+    
+    # Sort by the parsed integer
+    sort!(numbered, by = x -> x[2])
+    return numbered
+end
 """
     load_tif_stack_int16(dir::AbstractString) -> Array{Float32,3}
 
@@ -32,30 +61,84 @@ the full `Int16` range, then casts to `Float32` and stacks into a 3‐D array
     A 3‑D array where `[:,:,k]` is frame k, and each pixel has been scaled
     to the full `Int16` range then converted to `Float32`.
 """
+
 function load_tif_stack_int16(dir::AbstractString; pedestal=1600)
-    # 1) get all .tif files with an underscore
+    # Get all .tif files with an underscore
     files = filter(f -> occursin('_', f) && endswith(f, ".tif"), readdir(dir))
-
-    # 2) parse out the integer suffix after the underscore (before ".tif")
-    numbered = [(fname,
-                 parse(Int, splitext(split(fname, "_")[2])[1]))
-                for fname in files]
-
-    # 3) sort by that integer
-    sort!(numbered, by = x -> x[2])
-
-    # 4) load each, scale to Int16, then convert to Float32
-    max16 = typemax(UInt16)
-    frames = Vector{Array{Float32,2}}(undef, length(numbered))
-    for (idx, (fname, _)) in enumerate(numbered)
-        img_gray = load(joinpath(dir, fname))            # Gray{N0f16} array
-        img_f     = Float32.(img_gray)                   # [0,1] floats
-        img_i16   = UInt16.(round.(max16 .* img_f))  .- pedestal     # [0..32767] Int16
-        frames[idx] = Float32.(img_i16)                  # cast to Float32
+    
+    if isempty(files)
+        error("No TIFF files with underscore found in directory: $dir")
     end
+    
+    # Create tuples of (filename, full_path)
+    files_with_paths = [(fname, joinpath(dir, fname)) for fname in files]
+    
+    # Parse and sort
+    numbered = _parse_and_sort_tifs(files_with_paths)
+    
+    # Process the files
+    return _process_tif_files(numbered; pedestal=pedestal)
+end
 
-    # 5) stack into a 3‑D array
-    return cat(frames...; dims = 3)
+"""
+    load_tif_stack_int16(filenames::Vector{String}, dir::AbstractString; pedestal=1600)
+
+Load a stack of TIFF images from a list of filenames.
+
+Files are loaded from the given directory, scaled from `UInt16` range 
+to the full `Int16` range then converted to `Float32`.
+
+# Arguments
+- `filenames`: Vector of TIFF filenames to load
+- `dir`: Directory path where the files are located
+- `pedestal`: Value to subtract from pixel values (default: 1600)
+"""
+function load_tif_stack_int16(filenames::Vector{String}, dir::AbstractString; pedestal=1600)
+    # Filter to ensure we only have .tif files
+    tif_files = filter(f -> endswith(lowercase(f), ".tif") || endswith(lowercase(f), ".tiff"), filenames)
+    
+    if isempty(tif_files)
+        error("No TIFF files found in the provided list")
+    end
+    
+    # Create tuples of (filename, full_path)
+    files_with_paths = [(fname, joinpath(dir, fname)) for fname in tif_files]
+    
+    # Parse and sort
+    numbered = _parse_and_sort_tifs(files_with_paths)
+    
+    # Process the files
+    return _process_tif_files(numbered; pedestal=pedestal)
+end
+
+"""
+    load_tif_stack_int16(filenames::Vector{String}; pedestal=1600)
+
+Load a stack of TIFF images from a list of full file paths.
+
+Files are loaded directly from their full paths, scaled from `UInt16` range 
+to the full `Int16` range then converted to `Float32`.
+
+# Arguments
+- `filenames`: Vector of full paths to TIFF files
+- `pedestal`: Value to subtract from pixel values (default: 1600)
+"""
+function load_tif_stack_int16(filenames::Vector{String}; pedestal=1600)
+    # Filter to ensure we only have .tif files
+    tif_files = filter(f -> endswith(lowercase(f), ".tif") || endswith(lowercase(f), ".tiff"), filenames)
+    
+    if isempty(tif_files)
+        error("No TIFF files found in the provided list")
+    end
+    
+    # Create tuples of (basename, full_path) for parsing
+    files_with_paths = [(basename(fpath), fpath) for fpath in tif_files]
+    
+    # Parse and sort
+    numbered = _parse_and_sort_tifs(files_with_paths)
+    
+    # Process the files
+    return _process_tif_files(numbered; pedestal=pedestal)
 end
 
 

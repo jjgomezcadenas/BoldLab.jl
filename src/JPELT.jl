@@ -1,9 +1,6 @@
 module JPELT
-using Revise
-using StatsPlots
 using Statistics
 using StatsBase
-import Measures
 using SparseArrays
 using DataFrames
 using LinearAlgebra
@@ -11,95 +8,13 @@ using Changepoints
 using Distributions
 
 
-export  find_fit_pelt, pelt_fit, getsteps_pelt, steps_from_pelt
+export pelt_fit, getsteps_pelt, steps_from_pelt, pelt_find_optimal_noise_region
+
 
 include("SimpleLogger.jl")
 using .SimpleLogger
 global_log_level = WARN
 
-
-
-"""
-    find_fit_pelt(trzs, df; ic=1, si=1, sf=5, ped=0.0)
-
-Apply changepoint detection using the PELT algorithm to a set of time traces extracted from a trace matrix `trzs`, using the coordinate list from the dataframe `df`.
-
-# Arguments
-- `trzs`: A 2D matrix where each element is a vector representing a time trace (`trzs[i, j]` is the trace for pixel `(i, j)`).
-- `df`: A DataFrame with columns `i` and `j` indexing the pixels of interest in `trzs`.
-- `ic`: Index of the cost function used in the `changepoints` dictionary (default: 1).
-- `si`: Start index of the trace to fit (default: 1).
-- `sf`: End index of the trace to fit (default: 5).
-- `ped`: Pedestal value to subtract from each trace before storing the results (default: 0.0).
-
-# Returns
-A tuple of six items:
-1. `df2`: A DataFrame containing one row per detected step, with columns:
-   - `i`, `j`: pixel indices
-   - `nmol`: molecule counter
-   - `bestShot`: value of the cost for the fit
-   - `nstep`: number of steps found
-   - `stepHeight`: height of each individual step
-   - `stepHeightMin`: minimum step height among all steps
-   - `stepTime`: time of the step (index)
-   - `stepLength`: duration of each step
-2. `I`: Vector of `i` indices for successful fits.
-3. `J`: Vector of `j` indices for successful fits.
-4. `DX`: Vector of raw traces after pedestal subtraction.
-5. `FX`: Vector of fitted traces after pedestal subtraction.
-6. `SC`: Vector of changepoint detection result dictionaries (from `pelt_fit`).
-
-# Notes
-- The function filters out fits where either the penalty or cost returned is not strictly positive.
-- The `debug(...)` statements help trace progress and data quality.
-"""
-
-
-function find_fit_pelt(trzs::SparseMatrixCSC{Vector{T}, Int}, df::DataFrame; 
-                       ic =1, si=1, sf=5, ped=0.0) where {T<:Real}
-	I = Int[]
-	J = Int[]
-    DX = Vector{Vector{T}}()
-    FX = Vector{Vector{T}}()
-	SC = Vector{Dict{String, Array}}()
-	
-	ng = 0
-
-	df2 = DataFrame(i=Int[], j=Int[], nmol=Int[], bestShot=Float32[], 
-					nstep=Int[], stepHeight=Float32[], stepHeightMin=Float32[], 
-					stepTime=Int[], stepLength=Int[])
-
-	for row in eachrow(df)
-		debug("fitting trace ($(row.i),$(row.j))")
-		
-		tz = trzs[row.i, row.j] 
-
-		debug("mean between $(si) and $(sf) $(mean(tz[si:sf]))")
-		
-		cro = pelt_fit(tz; i=si, f=sf)
-		c1 = cro["changepoints"][ic]
-		pfit, pen, cost =  steps_from_pelt(tz, cro; ic=ic)
-		
-		if pen >0 && cost > 0 # fit OK
-			ng+=1
-			push!(I,row.i)
-			push!(J,row.j)
-			push!(DX, tz .-ped)
-			push!(FX, pfit .- ped)
-			push!(SC, cro)
-
-			nsteps, sth, stt, stl = getsteps_pelt(tz,c1)  
-			sthmx = minimum(sth)
-			for k in 1:nsteps
-                push!(df2, (row.i, row.j, ng, cost, nsteps, 
-							sth[k] - ped, sthmx - ped, stt[k], stl[k]))
-			end
-            
-		end
-	end
-	
-	df2, I, J, DX, FX, SC
-end
 
 
 """
@@ -114,16 +29,35 @@ Apply the CROPS (Changepoints for a Range of PenaltieS) version of the PELT algo
 
 # Returns
 - A dictionary `crops_output` containing the output of the `CROPS` routine, including:
-  - `"penalties"`: a vector of penalty values explored
-  - `"costs"`: corresponding cost values
-  - `"changepoints"`: a vector of changepoint sets, one for each penalty
+
+
+  * `out["penalty"]` : vector of penalties between minimum and maximum pen
+  * `out["number"]` : vector of number of changepoints for each penalty
+  * `out["constrained"]` : vector of optimal segmentation costs for each penalty
+  * `out["changepoints"]` : vector of changepoints sets for each penalty
+  
 
 # Notes
 - The cost function used is `NormalMeanSegment`, which assumes normally distributed data with known variance and unknown mean.
 - The penalty range is set between `log(n)` (likely to overfit) and `100 × log(n)` (encouraging fewer changepoints).
 - The optimal number of changepoints for each penalty is selected internally by the CROPS algorithm.
+
 """
-function pelt_fit(tz::AbstractVector{T}; i::Int=1, f::Int=5) where {T<:Real}
+
+function pelt_fit(tz::Vector{T}; i::Int=1, f::Int=5, auto_noise_region::Bool=true) where {T<:Real}
+
+	 # Automatically find optimal noise region if requested
+    if auto_noise_region
+        i, f = pelt_find_optimal_noise_region(tz)
+        debug("Auto-selected noise region: [$i:$f]")
+    end
+
+	# Check if trace is long enough for the requested noise estimation range
+    if length(tz) < f
+        debug("Trace too short ($(length(tz))) for noise estimation range si=$i, sf=$f")
+        return nothing, i, f
+    end
+
 	# Estimate the std of the distribution for range i:f
 	σi = std(tz[i:f])
 
@@ -138,7 +72,76 @@ function pelt_fit(tz::AbstractVector{T}; i::Int=1, f::Int=5) where {T<:Real}
 	crops_output = CROPS(costfi , length(tz), pn1, pn2)
 	#crops_output = @PELT tz Normal(:?, σi) pn1 pn2
 
-		
+	return crops_output, i, f
+end
+
+"""
+    steps_from_pelt(tz, cro, ic)
+
+Generate a piecewise constant fit from a PELT changepoint analysis result.
+
+# Arguments
+- `tz`: A real-valued vector representing the time trace to be segmented.
+- `cro`: A dictionary output from the `CROPS` routine, containing keys like `"changepoints"`, `"penalty"`, and `"constrained"`.
+- `ic`: Index of the changepoint set to use from `cro["changepoints"]` (default: 1).
+
+# Returns
+A tuple of:
+1. A vector representing the stepwise fit to the input trace (`tz`), where each segment has a constant value equal to the segment mean.
+2. The penalty value associated with the selected changepoint set.
+3. The cost value associated with the selected changepoint set.
+
+# Notes
+- If the changepoint list has fewer than 2 elements, the function returns an empty fit and zeros for penalty and cost.
+- If `ic` exceeds the number of available changepoint sets, it defaults to 1 with a warning.
+- The returned fit has the same length as `tz` and is constructed by repeating the mean of each segment over its duration.
+- The final segment is extended explicitly from the last changepoint to the end of the trace.
+"""
+function steps_from_pelt(tz::Vector{T}, cro, ic::Int) where {T<:Real}
+
+	debug("Calling steps_from_pelt, ic =$(ic)")
+	debug("cro, ic =$(cro)")
+	
+	if length(cro["changepoints"][ic] ) <2
+		return [], 0.0, 0.0, 0
+	end
+
+	if length(cro["changepoints"] )< ic
+		warn("ic =$(ic) is larger than fit set, take ic = 1")
+		ic = 1
+	end
+	
+	c1 = cro["changepoints"][ic]
+	pen = cro["penalty"][ic]
+	cost = cro["constrained"][ic]
+	nc = cro["number"][ic]
+
+	values = Float64[]
+	lengths = Int64[]
+	
+	# Handle changepoints properly - they mark boundaries between segments
+	# If first changepoint is 0, start from index 1
+	start_idx = c1[1] == 0 ? 1 : c1[1]
+	
+	for i in 2:length(c1)
+		# Each segment goes from previous changepoint to current changepoint
+		t0 = start_idx
+		t1 = c1[i]
+		if t1 > t0  # Only add segment if it has positive length
+			push!(values, mean(tz[t0:t1]))
+			push!(lengths, t1 - t0 + 1)
+		end
+		start_idx = t1 + 1  # Next segment starts after current changepoint
+	end
+	
+	# Add the final segment from the last changepoint to the end
+	if start_idx <= length(tz)
+		push!(values, mean(tz[start_idx:end]))
+		push!(lengths, length(tz) - start_idx + 1)
+	end
+
+	vcat([fill(val, len) for (val, len) in zip(values, lengths)]...), pen, cost, nc
+			  	
 end
 
 
@@ -162,11 +165,12 @@ A tuple of:
 - Step durations are computed as `t1 - t0 + 1`, where `t0` and `t1` are consecutive changepoint positions.
 - If a changepoint value is 0, it is replaced with 1 to avoid indexing errors.
 """
-function getsteps_pelt(tz::AbstractVector{T}, c1) where {T<:Real}
+function getsteps_pelt(tz::Vector{T}, cro, ic::Int) where {T<:Real}
+	c1 = cro["changepoints"][ic]
     nsteps = length(c1) -1
-	hh = []
-	ht =[]
-	hl = []
+	hh = Float64[]
+	ht = Int[]
+	hl = Int[]
 
 	for i in 2:length(c1) 
 		t0 = ifelse(c1[i-1] == 0, 1, c1[i-1])
@@ -181,70 +185,60 @@ end
 
 
 """
-    steps_from_pelt(tz, cro; ic=1)
+    pelt_find_optimal_noise_region(tz::Vector{T}; n_chunks=5, min_chunk_size=10) -> (Int, Int)
 
-Generate a piecewise constant fit from a PELT changepoint analysis result.
+Find the optimal region for noise estimation by analyzing trace in chunks.
+Returns the start and end indices of the chunk with the lowest coefficient of variation.
 
 # Arguments
-- `tz`: A real-valued vector representing the time trace to be segmented.
-- `cro`: A dictionary output from the `CROPS` routine, containing keys like `"changepoints"`, `"penalty"`, and `"constrained"`.
-- `ic`: Index of the changepoint set to use from `cro["changepoints"]` (default: 1).
+- `tz`: Trace vector
+- `n_chunks`: Number of chunks to divide the trace into (default: 5)  
+- `min_chunk_size`: Minimum size for each chunk (default: 10)
 
 # Returns
-A tuple of:
-1. A vector representing the stepwise fit to the input trace (`tz`), where each segment has a constant value equal to the segment mean.
-2. The penalty value associated with the selected changepoint set.
-3. The cost value associated with the selected changepoint set.
-
-# Notes
-- If the changepoint list has fewer than 2 elements, the function returns an empty fit and zeros for penalty and cost.
-- If `ic` exceeds the number of available changepoint sets, it defaults to 1 with a warning.
-- The returned fit has the same length as `tz` and is constructed by repeating the mean of each segment over its duration.
-- The final segment is extended explicitly from the last changepoint to the end of the trace.
+- Tuple (si, sf) with optimal start and end indices for noise estimation
 """
-function steps_from_pelt(tz, cro; ic=1)
+function pelt_find_optimal_noise_region(tz::Vector{T}; n_chunks=10, min_chunk_size=10, low_mean=1e-5) where {T<:Real}
 
-	debug("Calling steps_from_pelt, ic =$(ic)")
-	debug("cro, ic =$(cro)")
-	
-	if length(cro["changepoints"][1] ) <2
-		return [], 0.0, 0.0
-	end
-
-	if length(cro["changepoints"] )< ic
-		warn("ic =$(ic) is larger than fit set, take ic = 1")
-		ic = 1
-	end
-	
-	c1 = cro["changepoints"][ic]
-	pen = cro["penalty"][ic]
-	cost = cro["constrained"][ic]
-
-	values = Float64[]
-	lengths = Int64[]
-	for i in 1:length(c1) -1 
-		t0 = ifelse(c1[i] == 0, 1, c1[i])
-		t1 = c1[i+1]
-		push!(values, mean(tz[t0:t1]))
-		push!(lengths, t1-t0+1)
-	end
-	
-	push!(values, mean(tz[length(c1)+1:length(tz)]))
-	push!(lengths, 1)
-	
-	c1e = c1[end]
-	tze = length(tz)
-
-	debug("c1 = $(c1)")
-	debug("mean from i = $(c1e) to j = $(tze)")
-	debug("mean f= $(mean(tz[c1e:tze]))")
-	
-	push!(values, mean(tz[c1e:tze]))
-	push!(lengths, length(tz) -length(c1)+1)
-
-	vcat([fill(val, len) for (val, len) in zip(values, lengths)]...), pen, cost
-			  	
-		
+    n = length(tz)
+    
+    # Ensure we have enough data for chunking
+    if n < n_chunks * min_chunk_size
+        # Fall back to using last 20% of trace or minimum chunk size
+        chunk_size = max(min_chunk_size, div(n, 5))
+        return max(1, n - chunk_size + 1), n
+    end
+    
+    chunk_size = div(n, n_chunks)
+    best_cv = Inf
+    best_si, best_sf = 1, min(chunk_size, n)
+    
+    for i in 1:n_chunks
+        si = (i - 1) * chunk_size + 1
+        sf = min(i * chunk_size, n)
+        
+        if sf - si + 1 >= min_chunk_size
+            chunk = tz[si:sf]
+            chunk_mean = mean(chunk)
+            chunk_std = std(chunk)
+            
+            # Use coefficient of variation (CV = std/mean) as noise metric
+            # For low/near-zero signals, use std directly
+            cv = chunk_mean > low_mean ? chunk_std / abs(chunk_mean) : chunk_std
+            
+            if cv < best_cv
+                best_cv = cv
+                best_si, best_sf = si, sf
+            end
+        end
+    end
+    
+    debug("Optimal noise region: [$best_si:$best_sf], CV = $best_cv")
+    return best_si, best_sf
 end
+
+
+
+
 
 end #end module 

@@ -353,168 +353,6 @@ end
 # ╔═╡ d34b9105-09d4-4876-842d-bcf74249cca9
 @bind pthr NumberField(0:0.1:200.0, default=50.0)
 
-# ╔═╡ 74deedfc-a344-4373-9fc9-db22e83d48ac
-md"""
-#### Get traces from the imst matrix
-"""
-
-# ╔═╡ 3a8e7300-d209-4e50-ace8-c4b841d71f42
-md"""
-#### Plot traces
-"""
-
-# ╔═╡ 7360e3df-c583-4894-86a6-5654b50a389c
-#plot_traces(TRZS, peaks; ftrz=26, ltrz=50,  figsize=(1500,1500))
-
-# ╔═╡ 22fc945b-532f-40d9-8e72-ba3a5a58f95a
-md"""
-- Select traces for fit illustrations 
-"""
-
-# ╔═╡ d92c4660-4950-4adf-aceb-bc94663411c6
-function select_trace(TRZS, df::DataFrame, row::Int) 
-	i = df.i[row]
-	j = df.j[row]
-    trace = TRZS[i, j]  # safe, only defined where needed
-	i,j, trace
-end
-
-# ╔═╡ 51062b57-15c3-4288-bd14-74afb1bd08d2
-md"""
-## Autostepfinder
-- We call autostepfinder with thr=0, and a guess on the number of interactions. The resulting S-curve can be used to refine the actual interactions. 
-"""
-
-# ╔═╡ 567d39c7-f9ae-453a-8e9a-25672b399264
-md"- select the traze to fit"
-
-# ╔═╡ 1c6507e3-821f-4e07-b41e-b3c106df3671
-@bind ntrz NumberField(0:100, default=1)
-
-# ╔═╡ 415f6577-d2e6-4f7d-b1ee-5e1695ce98e3
-md"""
-- In standard fit, keep thr=0, used as parameter only to show that increasing thr values ruins the fit often
-"""
-
-# ╔═╡ e04c9c53-7ae2-474b-87bc-97bd58f458fa
-@bind thr NumberField(0.0:0.1:1.1, default=0.0)
-
-# ╔═╡ 3ad05178-0420-41af-8b6d-19994428bc5e
-md"- Guess on the number of interactions. Check the value of the S-Curve. The optimal number of interactions should be set to the peak of the S-Curve +1. If the data is not noisy, the best fit will find the minimum number of steps by itself, but noisy data may result in higher steps"
-
-# ╔═╡ 86e3c52c-9119-4d7d-bc7a-dc2f6cd63303
-@bind niter NumberField(0:10, default=10)
-
-# ╔═╡ 7929e575-bddf-4da5-ba21-6fdcc71f81da
-begin
-	
-	md"""
-## PELT
-"""
-end
-
-# ╔═╡ 77f5c1c3-11bb-4976-af44-1b488f08de6b
-md"""
-## Fits to data
-"""
-
-# ╔═╡ 3115a147-d41b-4ab6-9ad9-0f3b30fb4504
-begin
-    @bind fitASF10 CheckBox(false)
-end
-
-# ╔═╡ 816cc8ba-db93-49ff-ba0a-0e42138c1ca7
-begin
-    @bind fitASF3 CheckBox(false)
-end
-
-# ╔═╡ 5349482c-ba2a-4a85-ae2c-d6b20c8ae6e1
-begin
-    @bind fitPELT CheckBox(false)
-end
-
-# ╔═╡ f175508e-f0ea-48a9-ba72-d2e21215de1d
-md"""
-- Set the vaue of iterations (number of steps to be sought in the data)
-"""
-
-# ╔═╡ 25b059da-37e0-4498-b7cf-4d87ac26e126
-if fitASF3
-	niter2 = 3
-md"""
-- There is no clear recipe to manipulate the algorithm parameters. One can, for example, reduce the number of iterations, knowing that the data has few steps. As an example let us take niter = $(niter2): 
-"""
-end
-
-# ╔═╡ 60628fe1-6060-4d1f-b7c8-e1d9bd4032a5
-if fitPELT
-	md"""
-	## Fits with PELT
-	"""
-end
-
-# ╔═╡ b9e5ce1f-4a86-4377-9d50-6732fae9516c
-readdir("stepAnalysis")
-
-# ╔═╡ 76f1b23b-b6c4-43a0-9e53-3b2ff553f167
-md"""
-## PELT code
-"""
-
-# ╔═╡ 1be93848-5757-48e6-8d5b-638cb11c4a61
-md"""
-## Functions
-"""
-
-# ╔═╡ e7cb1f63-130c-4e75-af5d-779fc1a4c755
-"""
-    detect_local_maxima(frame::AbstractMatrix{<:Real}; 
-                        threshold::Real=0.0, 
-                        dx::Int=0, dy::Int=0) 
-        -> DataFrame
-
-Detect local maxima in a 2D image, excluding a border of `dx` and `dy` pixels from the search area.
-
-# Arguments
-- `frame`: 2D image matrix (e.g., one frame from an image stack).
-- `threshold`: Minimum intensity a peak must exceed (default: 0.0).
-- `dx`: Margin to exclude on the left and right edges (columns).
-- `dy`: Margin to exclude on the top and bottom edges (rows).
-
-# Returns
-- A `DataFrame` with columns:
-    - `i`: row index of each peak (vertical coordinate)
-    - `j`: column index (horizontal)
-    - `intensity`: value at the peak
-
-# Notes
-- Padding uses `Pad(:replicate)` to preserve edge values, but maxima near the border are excluded.
-"""
-function detect_local_maxima(frame::AbstractMatrix{<:Real}; threshold=0.0, dx=0, dy=0)
-    is_max = mapwindow(x -> x[5] == maximum(x), frame, (3, 3); 
-					   border=Pad(:replicate))
-    candidates = findall(is_max .& (frame .> threshold))
-
-    i_vals = Int[]
-    j_vals = Int[]
-    intensities = Float64[]
-
-    for I in candidates
-        i, j = Tuple(I)
-
-        # Skip peaks near the edge
-        if i ≤ dy || j ≤ dx || i > size(frame, 1) - dy || j > size(frame, 2) - dx
-            continue
-        end
-
-        push!(i_vals, i)
-        push!(j_vals, j)
-        push!(intensities, frame[I])
-    end
-
-    return DataFrame(i = i_vals, j = j_vals, intensity = intensities)
-end
-
 # ╔═╡ 4d0c63a1-89e0-4d89-846c-e1501dbc2696
 begin
 	#threshold = 10.0  
@@ -575,14 +413,66 @@ md"""
 - number of detected peaks = $(size(peaks)[1])
 """
 
+# ╔═╡ 74deedfc-a344-4373-9fc9-db22e83d48ac
+md"""
+#### Get traces from the imst matrix
+"""
+
 # ╔═╡ 1d9ae22b-6cb6-49c4-81e7-b4b740c893a7
 TRZS = build_sparse_traces(imgd, peaks)
 
 # ╔═╡ 02ba78f2-1de5-46d1-a8d6-d6895b2d8771
 peaks
 
+# ╔═╡ 3a8e7300-d209-4e50-ace8-c4b841d71f42
+md"""
+#### Plot traces
+"""
+
+# ╔═╡ 7360e3df-c583-4894-86a6-5654b50a389c
+#plot_traces(TRZS, peaks; ftrz=26, ltrz=50,  figsize=(1500,1500))
+
+# ╔═╡ 22fc945b-532f-40d9-8e72-ba3a5a58f95a
+md"""
+- Select traces for fit illustrations 
+"""
+
+# ╔═╡ d92c4660-4950-4adf-aceb-bc94663411c6
+function select_trace(TRZS, df::DataFrame, row::Int) 
+	i = df.i[row]
+	j = df.j[row]
+    trace = TRZS[i, j]  # safe, only defined where needed
+	i,j, trace
+end
+
+# ╔═╡ 51062b57-15c3-4288-bd14-74afb1bd08d2
+md"""
+## Autostepfinder
+- We call autostepfinder with thr=0, and a guess on the number of interactions. The resulting S-curve can be used to refine the actual interactions. 
+"""
+
+# ╔═╡ 567d39c7-f9ae-453a-8e9a-25672b399264
+md"- select the traze to fit"
+
+# ╔═╡ 1c6507e3-821f-4e07-b41e-b3c106df3671
+@bind ntrz NumberField(0:100, default=1)
+
 # ╔═╡ 6f3a242a-6dff-432a-b30e-1b7ee1d234fc
 i,j, tz = select_trace(TRZS, peaks, ntrz)
+
+# ╔═╡ 415f6577-d2e6-4f7d-b1ee-5e1695ce98e3
+md"""
+- In standard fit, keep thr=0, used as parameter only to show that increasing thr values ruins the fit often
+"""
+
+# ╔═╡ e04c9c53-7ae2-474b-87bc-97bd58f458fa
+@bind thr NumberField(0.0:0.1:1.1, default=0.0)
+
+# ╔═╡ 3ad05178-0420-41af-8b6d-19994428bc5e
+md"- Guess on the number of interactions. Check the value of the S-Curve. The optimal number of interactions should be set to the peak of the S-Curve +1. If the data is not noisy, the best fit will find the minimum number of steps by itself, but noisy data may result in higher steps"
+
+# ╔═╡ 86e3c52c-9119-4d7d-bc7a-dc2f6cd63303
+@bind niter NumberField(0:10, default=10)
 
 # ╔═╡ d1c82dbe-8493-464d-bdac-f505657678d6
 begin
@@ -603,6 +493,14 @@ end
 # ╔═╡ 8aa50fbb-74a9-424d-9a84-e717247c65a9
 plotfit(dataX, FitX, S_curve, i,j )
 
+# ╔═╡ 7929e575-bddf-4da5-ba21-6fdcc71f81da
+begin
+	
+	md"""
+## PELT
+"""
+end
+
 # ╔═╡ ca42733e-3343-4676-a0a8-e347bdd600cf
 begin
 	cro = pelt_fit(tz)
@@ -619,10 +517,43 @@ begin
 	end
 end
 
+# ╔═╡ 77f5c1c3-11bb-4976-af44-1b488f08de6b
+md"""
+## Fits to data
+"""
+
+# ╔═╡ 3115a147-d41b-4ab6-9ad9-0f3b30fb4504
+begin
+    @bind fitASF10 CheckBox(false)
+end
+
+# ╔═╡ 816cc8ba-db93-49ff-ba0a-0e42138c1ca7
+begin
+    @bind fitASF3 CheckBox(false)
+end
+
+# ╔═╡ 5349482c-ba2a-4a85-ae2c-d6b20c8ae6e1
+begin
+    @bind fitPELT CheckBox(false)
+end
+
+# ╔═╡ f175508e-f0ea-48a9-ba72-d2e21215de1d
+md"""
+- Set the vaue of iterations (number of steps to be sought in the data)
+"""
+
 # ╔═╡ 5042becb-29c6-447e-84ad-a965a9961992
 if fitASF10
 	dfs, zI, zJ, zDX, zFX, zSC  =find_fit_candidates2(TRZS, peaks;  sel="core", ped=0.0, niter=niter, thr=thr)
 	dfs
+end
+
+# ╔═╡ 25b059da-37e0-4498-b7cf-4d87ac26e126
+if fitASF3
+	niter2 = 3
+md"""
+- There is no clear recipe to manipulate the algorithm parameters. One can, for example, reduce the number of iterations, knowing that the data has few steps. As an example let us take niter = $(niter2): 
+"""
 end
 
 # ╔═╡ dc5bf3d6-9bac-42a9-b914-ab45e744a11d
@@ -631,11 +562,21 @@ if fitASF3
 	dfs2
 end
 
+# ╔═╡ 60628fe1-6060-4d1f-b7c8-e1d9bd4032a5
+if fitPELT
+	md"""
+	## Fits with PELT
+	"""
+end
+
 # ╔═╡ b7b1a6bc-aa85-4daa-a77b-e69267d2c633
 if fitPELT
 	pdf, pI, pJ, pDX, pFX, pSC  =find_fit_pelt(TRZS, peaks)
 	pdf
 end
+
+# ╔═╡ b9e5ce1f-4a86-4377-9d50-6732fae9516c
+readdir("stepAnalysis")
 
 # ╔═╡ 7cfbc9b3-965b-45ca-bc33-f3a5f57b2ea3
 if fitPELT
@@ -648,6 +589,65 @@ if fitPELT
 		plot(pstph, size=(600,300))
 end
 
+
+# ╔═╡ 76f1b23b-b6c4-43a0-9e53-3b2ff553f167
+md"""
+## PELT code
+"""
+
+# ╔═╡ 1be93848-5757-48e6-8d5b-638cb11c4a61
+md"""
+## Functions
+"""
+
+# ╔═╡ e7cb1f63-130c-4e75-af5d-779fc1a4c755
+"""
+    detect_local_maxima(frame::AbstractMatrix{<:Real}; 
+                        threshold::Real=0.0, 
+                        dx::Int=0, dy::Int=0) 
+        -> DataFrame
+
+Detect local maxima in a 2D image, excluding a border of `dx` and `dy` pixels from the search area.
+
+# Arguments
+- `frame`: 2D image matrix (e.g., one frame from an image stack).
+- `threshold`: Minimum intensity a peak must exceed (default: 0.0).
+- `dx`: Margin to exclude on the left and right edges (columns).
+- `dy`: Margin to exclude on the top and bottom edges (rows).
+
+# Returns
+- A `DataFrame` with columns:
+    - `i`: row index of each peak (vertical coordinate)
+    - `j`: column index (horizontal)
+    - `intensity`: value at the peak
+
+# Notes
+- Padding uses `Pad(:replicate)` to preserve edge values, but maxima near the border are excluded.
+"""
+function detect_local_maxima(frame::AbstractMatrix{<:Real}; threshold=0.0, dx=0, dy=0)
+    is_max = mapwindow(x -> x[5] == maximum(x), frame, (3, 3); 
+					   border=Pad(:replicate))
+    candidates = findall(is_max .& (frame .> threshold))
+
+    i_vals = Int[]
+    j_vals = Int[]
+    intensities = Float64[]
+
+    for I in candidates
+        i, j = Tuple(I)
+
+        # Skip peaks near the edge
+        if i ≤ dy || j ≤ dx || i > size(frame, 1) - dy || j > size(frame, 2) - dx
+            continue
+        end
+
+        push!(i_vals, i)
+        push!(j_vals, j)
+        push!(intensities, frame[I])
+    end
+
+    return DataFrame(i = i_vals, j = j_vals, intensity = intensities)
+end
 
 # ╔═╡ 291c9e90-a915-4b35-a134-745ef253a72a
 function plot_traces(TRZS, peaks; ftrz=1, ltrz=9,  figsize=(1500,1500))
@@ -1069,7 +1069,7 @@ end
 # ╠═51062b57-15c3-4288-bd14-74afb1bd08d2
 # ╟─567d39c7-f9ae-453a-8e9a-25672b399264
 # ╠═1c6507e3-821f-4e07-b41e-b3c106df3671
-# ╟─415f6577-d2e6-4f7d-b1ee-5e1695ce98e3
+# ╠═415f6577-d2e6-4f7d-b1ee-5e1695ce98e3
 # ╠═e04c9c53-7ae2-474b-87bc-97bd58f458fa
 # ╠═3ad05178-0420-41af-8b6d-19994428bc5e
 # ╠═86e3c52c-9119-4d7d-bc7a-dc2f6cd63303
