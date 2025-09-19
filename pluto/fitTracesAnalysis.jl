@@ -27,14 +27,10 @@ begin
 	using Revise
 	using BoldLab
 	using SimpleLogger
-	#using JStepFinder
-	#using StepAnalysis
-	#using LabStepAnalysis
-	#using StepPreprocessing
-	#using JPELT
+	
 	using histos
-	import Measures
-	using NPZ
+	#import Measures
+	#using NPZ
 	using Unitful
 end
 
@@ -63,7 +59,7 @@ using LinearAlgebra
 
 # ╔═╡ c5d3b3b0-d5f2-4102-8bc7-e6af113e8e63
 md"""
-- Trace Analysis (MS stands for Mikel Setup)
+- Trace Analysis (Prepared for Alexey Setup and for Mikel Setup)
 """
 
 # ╔═╡ cba7fc75-8363-4ffa-b5a6-6e7d34363813
@@ -145,6 +141,9 @@ ActiveFilters = Dict("Filter3"=>[500.0, 520.0],
 DoubleFilters = Dict("Filter1"=>[473.0, 552.0],
 					 "Filter2"=>[600.0, 750.0])
 
+# ╔═╡ a7cce935-9f5b-4090-9867-f944a42711bf
+DoubleFiltersAS = ["Filter3","Filter4"]
+
 # ╔═╡ 555f27e7-a820-4830-b47a-7bb50458cdc5
 plot_molecule_emission(naph3f, naph3c, DoubleFilters)
 
@@ -157,64 +156,135 @@ compute_filter_coverage(naph3f, naph3c, ActiveFilters, λ_i=500.0, λ_f=650.0)
 
 # ╔═╡ 95804d28-2720-4a5a-8003-05b1bc86f00c
 begin
-    BASEDIRS = Dict("CampaignApril2025" =>"/Users/jjgomezcadenas/BoldLab/BOLD/Alfonso/2025_03_Blank_measurements_campaign",
-	"MikelSeptember2025" =>"/Users/jjgomezcadenas/BoldLab/BOLD/Data1/ZFFL179_NAPH3_SIL_5e-7")
+    BASEDIRS = Dict("AS" =>"/Users/jjgomezcadenas/BoldLab/BOLD/Alfonso/2025_03_Blank_measurements_campaign/Evaporation_NAPH3_2",
+	"MS" =>"/Users/jjgomezcadenas/BoldLab/BOLD/Data1/ZFFL179_NAPH3_SIL_5e-7")
     base_directory(label) = BASEDIRS[label]
-	root_dir =  base_directory("MikelSeptember2025")
+	md"""
+	- Select ROOT foleder (AS = Alexey Setup, MS = Mikel Setup)
+	"""
 end
+
+# ╔═╡ 2b4f0cb4-b41a-4eef-ac9b-88a75e195bda
+setups_dirs = ["AS", "MS"] # Alexey or Mikel Setup
+
+# ╔═╡ 9f4dc9d6-3e93-463b-a386-fcade500c8c4
+@bind root_folder Select(setups_dirs, default="AS")
+
+# ╔═╡ 7f676247-adcb-4af0-87f0-268fff96532d
+if root_folder == "MS"
+	md"""
+	#### Selected Mikel Setup
+	- green image = [473.0, 552.0]
+	- red image = [600.0, 750.0]
+	"""
+else
+	md"""
+	#### Selected Alexey Setup
+	- green image = [500.0, 520.0]
+	- red image =   [524.0, 544.0]
+	"""
+end
+
+# ╔═╡ 769d6e70-3393-465a-b844-3a0edabae7be
+root_dir =  base_directory(root_folder)
 
 # ╔═╡ 89ac3496-c36a-4472-a21c-bf4fca5e79d6
 begin
    phys_dirs, _, _ = scan_level(root_dir)
 
-	md"""
-	- Select Physics dir (FREE or EVAP)
-	"""
+	if root_folder == "MS"
+		md"""
+		- MS: Select Physics dir (FREE/EVAP)
+		"""
+	else
+		md"""
+		- AS: Select Sample 
+		"""
+	end
 end
 
 
-# ╔═╡ 79c26992-6259-4901-8a6a-43f5d3e75ee5
-phys_dirs
-
 # ╔═╡ 7c79ff2d-74bc-42e0-bbd4-65f06aa50a41
-@bind phys_folder Select(phys_dirs, default="FREE")
+@bind phys_folder Select(phys_dirs, default="SE0_ba0.1m_A1")
 
 # ╔═╡ e3ce6b68-4186-41a5-a3f1-a458b78d8821
 begin
 	path_samples = joinpath(root_dir, phys_folder)
     sample_dirs, _, _ = scan_level(path_samples)
-
-	md"""
-	- Select sample dir (A1, A2...)
-	"""
+	if root_folder == "MS"
+		md"""
+		- MS: Select Sample dir 
+		"""
+	else
+		md"""
+		- AS: Select Set (field) dir 
+		"""
+	end
 end
 
 # ╔═╡ 62c9f533-a314-4c80-b700-8b83bc3c8f83
-@bind sample_folder Select(sample_dirs) 
+@bind sample_folder Select(sample_dirs, default="Set1") 
 
 # ╔═╡ c8770df9-727b-4095-b45c-d9d10877227e
-begin
+if root_folder == "MS"
 	path_files = joinpath(root_dir, phys_folder, sample_folder)
     _, _, all_files = scan_level(path_files)
 	file_numbers = sort(unique([parse(Int, match(r"Image(\d+)_", f).captures[1]) for f in all_files]))
+	
 	md"""
-	- Select field(an integer number)
+	- MS: Select field (an integer number)
 	"""
+else
+	gfilter ="Filter3"
+	rfilter = "Filter4"
+	
+	path_green = joinpath(root_dir, phys_folder, sample_folder, gfilter)
+    _, _, green_files = scan_level(path_green)
+	
+	path_red = joinpath(root_dir, phys_folder, sample_folder, rfilter)
+    _, _, red_files = scan_level(path_red)
+
+	tif_green = [joinpath(path_green, ff) for ff in green_files]
+	igreenAS = load_tif_stack_int16(tif_green, pedestal=0.0)
+
+	tif_red = [joinpath(path_red, ff) for ff in red_files]
+	iredAS = load_tif_stack_int16(tif_red, pedestal=0.0)
+	
 end
 
-# ╔═╡ fa36b6d7-ad16-4020-a28e-e904d3a99128
-file_numbers
-
 # ╔═╡ 04601060-8310-4e76-a2d0-8e258d2d061f
-@bind field Select(file_numbers) 
+if root_folder == "MS"
+	@bind field Select(file_numbers) 
+end
 
 # ╔═╡ 9c6db6db-b5b7-49e6-b275-970a29ba69cb
-begin
+if root_folder == "MS"
 	filtered_files = filter(f -> occursin("Image$(field)_", f), all_files)
 	tif_files = [joinpath(path_files, ff) for ff in filtered_files]
 	imxt = load_tif_stack_int16(tif_files, pedestal=0.0)
-	igreen = imxt[1:399, :, :]
-	ired = imxt[400:800, :, :]
+	igreenMS = imxt[1:399, :, :]
+	iredMS = imxt[400:800, :, :]
+	md"""
+	- MS: Stack size for green and red: $(size(igreenMS))
+	"""
+
+end
+
+# ╔═╡ 7fbc84fb-2b69-4a36-9387-f0baddff2ec7
+if root_folder == "MS"
+	igreen = igreenMS
+	ired = iredMS
+	ilast = size(igreenMS)[3]
+	md"""
+	- MS: Stack size for green and red: $(ilast)
+	"""
+else
+	igreen = igreenAS
+	ired = iredAS
+	ilast = size(igreenAS)[3]
+	md"""
+	- AS: Stack size for green and red: $(ilast)
+	"""
 end
 
 # ╔═╡ 91b5254a-b21a-4243-a838-811ddc90d515
@@ -222,16 +292,6 @@ plot_frames(igreen; colormap=:viridis, nscale=30)
 
 # ╔═╡ 5a63ed41-9233-4654-a37c-d00013c35197
 plot_frames(ired; colormap=:hot, nscale=30)
-
-# ╔═╡ 797aaf3e-f284-4f62-bb1a-5514190ca422
-function png_from_path(path)
-	
-	parts = split(path, '/')
-	folder1 = parts[end - 1]  # W3_SVE0_1
-	folder2 = parts[end]      # Field1
-	string("stepAnalysis","/",folder1,"_", folder2, ".png")
-	#join(["stepAnalysis", folder1 * "_" * folder2], '/')
-end
 
 # ╔═╡ 4e4252bc-3b6e-4507-8817-dfe9558b51b6
 md"""
@@ -263,14 +323,14 @@ begin
 	rbackground = compute_background_from_stack(ired; σ= σ, nlf=nlf)
 	ghbk, gpbk = step_hist(vec(gbackground);
               nbins=40,
-              xlim=(400.0, 600.0),
+              #xlim=(400.0, 600.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
 			  title="residual intensity background GREEN")
 	rhbk, rpbk = step_hist(vec(rbackground);
               nbins=40,
-              xlim=(400.0, 600.0),
+              #xlim=(400.0, 600.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
@@ -305,7 +365,7 @@ begin
 			  title="GREEN: IBS")
 	hibs2, pibs2 = step_hist(vim[vim.>icut];
               nbins=50,
-              xlim=(0.0, 350.0),
+              xlim=(0.0, 100.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
@@ -375,7 +435,7 @@ begin
 
 	hibsf2, pibsf2 = step_hist(vi2m[vi2m.>icut];
               nbins=50,
-              xlim=(0.0, 2500.0),
+              #xlim=(0.0, 2500.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
@@ -385,7 +445,7 @@ begin
 
 	rhibsf2, rpibsf2 = step_hist(vi2r[vi2r.>icut2];
               nbins=50,
-              xlim=(0.0, 350.0),
+              #xlim=(0.0, 350.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
@@ -403,7 +463,7 @@ end
 @bind nframe NumberField(0:199, default=1)
 
 # ╔═╡ d34b9105-09d4-4876-842d-bcf74249cca9
-@bind pthr NumberField(0:1.0:200.0, default=50.0)
+@bind pthr NumberField(0:1.0:200.0, default=35.0)
 
 # ╔═╡ 4d0c63a1-89e0-4d89-846c-e1501dbc2696
 begin
@@ -413,6 +473,11 @@ begin
 	- found $(size(gpeaks)[1]) molecule candidates 
 	- with thr = $(pthr)
 	"""
+end
+
+# ╔═╡ eee7f7b1-b8fd-4f54-bbfb-122195d6bd5f
+if size(gpeaks)[1] >0
+	jn.BoldLab.plot_peaks(gimgd, gpeaks, nframe; colormap=:viridis)
 end
 
 # ╔═╡ a74eff14-b6b4-4e80-bfc7-5a1db6a32aba
@@ -425,11 +490,16 @@ begin
 	"""
 end
 
+# ╔═╡ 920f1c33-2c46-4158-b88f-a9bef5590e72
+if size(rpeaks)[1] >0
+	jn.BoldLab.plot_peaks(rimgd, rpeaks, nframe, colormap=:hot)
+end
+
 # ╔═╡ 7927a18c-6942-42bd-ac6b-2ff720b155d0
 begin
 	ghisp, gpisp = step_hist(gpeaks.intensity;
 	              nbins=20,
-	              xlim=(0.0, 2500.0),
+	              #xlim=(0.0, 2500.0),
 	              logy=false,
 	              xlabel=" intensity",
 	              ylabel=" #entries ",
@@ -437,7 +507,7 @@ begin
 
 	rhisp, rpisp = step_hist(rpeaks.intensity;
               nbins=20,
-              xlim=(0.0, 2500.0),
+              #xlim=(0.0, 2500.0),
               logy=false,
               xlabel=" intensity",
               ylabel=" #entries ",
@@ -538,32 +608,85 @@ md"""
 
 # ╔═╡ 64154de3-6523-444b-aa5f-6ada2ae9a9e0
 md"""
-## Comparison between ASF and PELT/CROP
+## Fits
 """
 
-# ╔═╡ 3c5b09f0-5a58-4574-8cb6-9cf45a3c805e
-begin
-    @bind parsASF CheckBox(false)
+# ╔═╡ 9dc7b946-6213-475f-ae6d-ebead0844463
+
+md"""
+#### Select red or green channel
+"""
+
+# ╔═╡ fcb3f19a-a728-4afd-88b8-0ea97f8922da
+
+@bind channel Select(["green", "red"], default="red")
+
+
+# ╔═╡ ae2dd421-2c94-43a0-a0b8-7e964684a329
+begin 
+if channel == "green"
+		cTRZS = gTRZS
+		cpeaks = gpeaks
+		npeaks = size(gpeaks)[1]
+else
+		cTRZS = rTRZS
+		cpeaks = rpeaks
+		npeaks = size(rpeaks)[1]
+end
+	md"""
+	#### Selected channel $(channel)
+	"""
 end
 
-# ╔═╡ 678767ca-0ec4-4979-b4dc-f9f7d18e39dc
-begin
-    @bind parsPELT CheckBox(false)
-end
+# ╔═╡ c2438c47-31cd-4331-a2b2-35e96957a65d
+#if parsASF
+#	hstepsASF, pstepsASF = step_hist(ASFnsteps;
+#	              nbins=20,
+#	              xlim=(0.0, 25.0),
+#	              logy=false,
+#	              xlabel="# steps",
+#	              ylabel="#entries ",
+#				  title="ASF nsteps ")
+	
+#	hchi2ASF, pchi2ASF = step_hist(ASFchi2;
+#	              nbins=20,
+#	              xlim=(0.0, 200.0),
+#	              logy=false,
+#	              xlabel="chi2/dof",
+#	              ylabel="#entries ",
+#				  title="ASF chi2 ")
+	
 
-# ╔═╡ 5349482c-ba2a-4a85-ae2c-d6b20c8ae6e1
-begin
-    @bind fitPELT CheckBox(false)
-end
+#	plot(pstepsASF, pchi2ASF, layout=(1,2), size=(800, 400))
+	
+#end
 
 # ╔═╡ 664b3e4a-531b-4215-9909-242358d85d15
 begin
     @bind fitEXP CheckBox(false)
 end
 
+# ╔═╡ 3c5b09f0-5a58-4574-8cb6-9cf45a3c805e
+#begin
+#    @bind parsASF CheckBox(false)
+#end
+
 # ╔═╡ cd836ae2-25dc-433d-8a06-fea4dcfbe861
+#begin
+#    @bind fitASF3 CheckBox(false)
+#end
+
+# ╔═╡ f8433824-dd11-4a8d-ae98-8d323926b72f
+#if fitASF3
+#	niter2 = 10
+#	md"""
+#	- The number of iterations defines the maximum number of steps that can be found #in the data. A short number may underfit while a large number may overfit the data. #Here we take: niter = $(niter2): 
+#"""
+#end
+
+# ╔═╡ 5349482c-ba2a-4a85-ae2c-d6b20c8ae6e1
 begin
-    @bind fitASF3 CheckBox(false)
+    @bind fitPELT CheckBox(false)
 end
 
 # ╔═╡ cf6e8f34-4a1d-4ea3-8b7f-e569dac6c2c3
@@ -576,7 +699,7 @@ end
 
 # ╔═╡ 5c598f18-17dc-49cf-95b0-0c555fdb17c1
 if fitEXP
-	dfe, VI, VJ, VDX, VFX = fit_traces_exponential(gTRZS, gpeaks)
+	dfe, VI, VJ, VDX, VFX = fit_traces_exponential(cTRZS, cpeaks)
 	dfe
 end
 
@@ -593,44 +716,16 @@ end
 #	plot_fits2(dfne, VDX, VFX, VI, VJ; plotsel="5x5")
 #end
 
-# ╔═╡ 9dc7b946-6213-475f-ae6d-ebead0844463
+# ╔═╡ 0a28185c-7167-46da-bd51-5036ad8796db
 if fitPELT
 	md"""
-	## Fits with PELT GREEN, using ic=5
+	## Fits with PELT
 	"""
 end
 
-# ╔═╡ f8433824-dd11-4a8d-ae98-8d323926b72f
-if fitASF3
-	niter2 = 10
-	md"""
-	- The number of iterations defines the maximum number of steps that can be found in the data. A short number may underfit while a large number may overfit the data. Here we take: niter = $(niter2): 
-"""
-end
-
-# ╔═╡ 2cf8cb42-61fe-4ea9-8047-7004511eaa19
-if fitPELT
-	#pdf, pI, pJ, pDX, pFX, pSC  =find_fit_pelt(gTRZS, gpeaks)
-	pdf, pI, pJ, pDX, pFX  = jn.BoldLab.fit_pelt(gTRZS, gpeaks, ic=5) 
-	pdf
-end
-
-# ╔═╡ 67ffc85b-8f2e-4f6c-8a80-3ba2c441bcc3
-if fitPELT
-	md"""
-	## Fits with PELT RED
-	"""
-end
-
-# ╔═╡ f14a9a85-414d-4b0e-8f84-569b74c5953c
-#if fitPELT
-#	rpdf, rpI, rpJ, rpDX, rpFX, rpSC  =find_fit_pelt(rTRZS, rpeaks)
-#	pdf
-#end
-
-# ╔═╡ deddcc3c-f4ed-4e99-94db-bc59eb0446f4
-#if fitPELT
-#	plotsdf_pelt(rpdf, stept=200.0, steph=200.0, stepl=200.0)
+# ╔═╡ b23997a3-c47f-44d8-86a5-14d043eeb5a3
+#if parsASF
+#	ASFnsteps, ASFchi2  = asf_pars(ntx=200)
 #end
 
 # ╔═╡ 7ddb353f-ef75-4ffd-9273-b02a3321474c
@@ -652,6 +747,181 @@ md"""
 ## Functions
 """
 
+# ╔═╡ aca645d4-c3a2-4ed1-911e-df742ffc9ebf
+function find_threshold_extended(imgd, nframe; thi=15, thf=65, step=1, smooth_window=3)
+
+      # Helper functions
+      dx(i, x, y) = -(y[i] - y[i-1])/(x[i] - x[i-1])
+      ddx(i, d) = d[i] - d[i-1]
+
+      # Moving average for smoothing (optional)
+      function moving_avg(v, window)
+          n = length(v)
+          smoothed = similar(v)
+          half_w = div(window, 2)
+
+          for i in 1:n
+              start_idx = max(1, i - half_w)
+              end_idx = min(n, i + half_w)
+              smoothed[i] = mean(v[start_idx:end_idx])
+          end
+          return smoothed
+      end
+
+      NP = Int[]        # Number of peaks
+      TH = Float64[]    # Threshold values
+      DTH = Float64[]   # First derivative (rate of change)
+      DDTH = Float64[]  # Second derivative (variation of derivative)
+      DTH_ABS = Float64[] # Absolute value of first derivative
+      DDTH_ABS = Float64[] # Absolute value of second derivative
+
+      for (i, pthr) in enumerate(thi:step:thf)
+          peaks = detect_local_maxima(imgd[:, :, nframe]; threshold=pthr*1.0, dx=0, dy=0)
+
+          np = size(peaks)[1]
+          if np == 0
+              break
+          end
+
+          push!(NP, np)
+          push!(TH, pthr*1.0)
+
+          if i == 1
+              push!(DTH, 0.0)
+              push!(DDTH, 0.0)
+              push!(DTH_ABS, 0.0)
+              push!(DDTH_ABS, 0.0)
+          else
+              # First derivative
+              dth = dx(length(TH), TH, NP)
+              if dth == 0.0
+                  dth = 1e-6  # Small value instead of 1.0
+              end
+              push!(DTH, dth)
+              push!(DTH_ABS, abs(dth))
+
+              # Second derivative
+              if i == 2
+                  push!(DDTH, 0.0)
+                  push!(DDTH_ABS, 0.0)
+              else
+                  ddth = ddx(length(DTH), DTH)
+                  push!(DDTH, ddth)
+                  push!(DDTH_ABS, abs(ddth))
+              end
+          end
+      end
+
+      # Post-process to fill initial values
+      if length(DTH) > 2
+          DTH[1] = DTH[2]
+          DTH_ABS[1] = DTH_ABS[2]
+      end
+
+      if length(DDTH) > 2
+          DDTH[1] = DDTH[3]
+          # Fix the conditional expression - use proper if-else syntax
+          DDTH[2] = length(DDTH) > 3 ? (DDTH[3] + DDTH[4])/2 : DDTH[3]
+          DDTH_ABS[1] = DDTH_ABS[3]
+          DDTH_ABS[2] = DDTH_ABS[3]
+      end
+
+      # Optional smoothing
+      if smooth_window > 1 && length(DTH) > smooth_window
+          DTH_smooth = moving_avg(DTH, smooth_window)
+          DDTH_smooth = moving_avg(DDTH, smooth_window)
+      else
+          DTH_smooth = DTH
+          DDTH_smooth = DDTH
+      end
+
+      # Find key points
+      # Maximum absolute first derivative (steepest change)
+      max_dth_idx = argmax(DTH_ABS)
+      max_dth_threshold = TH[max_dth_idx]
+
+      # Maximum absolute second derivative (maximum curvature)
+      if length(DDTH_ABS) > 0
+          max_ddth_idx = argmax(DDTH_ABS)
+          max_ddth_threshold = TH[max_ddth_idx]
+      else
+          max_ddth_idx = 1
+          max_ddth_threshold = TH[1]
+      end
+
+      # Return results as a named tuple for clarity
+      return (
+          NP = NP,
+          TH = TH,
+          DTH = DTH,
+          DDTH = DDTH,
+          DTH_ABS = DTH_ABS,
+          DDTH_ABS = DDTH_ABS,
+          DTH_smooth = DTH_smooth,
+          DDTH_smooth = DDTH_smooth,
+          max_slope_threshold = max_dth_threshold,
+          max_curvature_threshold = max_ddth_threshold,
+          max_slope_idx = max_dth_idx,
+          max_curvature_idx = max_ddth_idx
+      )
+  end
+
+# ╔═╡ 7d46f745-39bc-4a5e-b061-426003645fd0
+gresult = find_threshold_extended(gimgd, nframe; thi=15, thf=65, step=0.5)
+
+# ╔═╡ b7d00b5e-ff2b-48d8-ae03-383fe5164adf
+let
+p1 = plot(gresult.TH, gresult.NP,
+           marker=:circle, label="Peak Count",
+           xlabel="Threshold", ylabel="Number of Peaks",
+           title="Peak Detection Analysis")
+	p2 = plot(gresult.TH, gresult.DTH,
+           marker=:square, label="1st Derivative",
+           xlabel="Threshold", ylabel="dN/dT",
+           title="Rate of Change")
+  vline!([gresult.max_slope_threshold], label="Max Slope", color=:red, ls=:dash)
+	p3 = plot(gresult.TH, gresult.DDTH,
+           marker=:diamond, label="2nd Derivative",
+           xlabel="Threshold", ylabel="d²N/dT²",
+           title="Variation of Derivative")
+  vline!([gresult.max_curvature_threshold], label="Max Curvature", color=:green, ls=:dash)
+
+  plot(p1, p2, p3, layout=(3,1), size=(600, 800))
+end
+
+# ╔═╡ 49ed7c4f-fb85-4afe-9f5c-198d298d17ae
+rresult = find_threshold_extended(rimgd, nframe; thi=15, thf=65, step=0.5)
+
+# ╔═╡ 746576d2-d785-4cae-895e-d5a3a0b9bac5
+let
+p1 = plot(rresult.TH, rresult.NP,
+           marker=:circle, label="Peak Count",
+           xlabel="Threshold", ylabel="Number of Peaks",
+           title="Peak Detection Analysis")
+	p2 = plot(rresult.TH, rresult.DTH_smooth,
+           marker=:square, label="1st Derivative",
+           xlabel="Threshold", ylabel="dN/dT",
+           title="Rate of Change")
+  vline!([rresult.max_slope_threshold], label="Max Slope", color=:red, ls=:dash)
+	p3 = plot(rresult.TH, rresult.DDTH_smooth,
+           marker=:diamond, label="2nd Derivative",
+           xlabel="Threshold", ylabel="d²N/dT²",
+           title="Variation of Derivative")
+  vline!([rresult.max_curvature_threshold], label="Max Curvature", color=:green, ls=:dash)
+
+  plot(p1, p2, p3, layout=(3,1), size=(600, 800))
+end
+
+# ╔═╡ 797aaf3e-f284-4f62-bb1a-5514190ca422
+function png_from_path(path)
+	
+	parts = split(path, '/')
+	folder1 = parts[end - 1]  # W3_SVE0_1
+	folder2 = parts[end]      # Field1
+	string("stepAnalysis","/",folder1,"_", folder2, ".png")
+	#join(["stepAnalysis", folder1 * "_" * folder2], '/')
+end
+
 # ╔═╡ de5a1406-000a-4acb-8e70-051c0aa76429
 function select_trace(TRZS, df::DataFrame, row::Int) 
 	i = df.i[row]
@@ -672,13 +942,19 @@ end
 afsFit = jn.BoldLab.fit_asf(tz; niter=niter, tresH=thr)
 
 # ╔═╡ c12cd5f1-6c56-400a-918a-ef0cfa842af0
-md"""
-#### Results from ASF: 
-- number of steps = $(length(afsFit.steps))
-- number of iterations = $(afsFit.iter)
-- best shot = $(afsFit.best_shot)
-- chi2/dof = $(afsFit.χ2_red)
-"""
+if afsFit == nothing
+	md"""
+	#### ASF fit failed
+	"""
+else
+	md"""
+	#### Results from ASF: 
+	- number of steps = $(length(afsFit.steps))
+	- number of iterations = $(afsFit.iter)
+	- best shot = $(afsFit.best_shot)
+	- chi2/dof = $(afsFit.χ2_red)
+	"""
+end
 
 # ╔═╡ cc3653ee-d258-4928-a59c-22534d5d3d8c
 p1 = jn.BoldLab.plot_asf_fit(tz, afsFit; show_residuals=true) 
@@ -781,45 +1057,15 @@ function asf_pars(;ntx=100)
 	
 end
 
-# ╔═╡ b23997a3-c47f-44d8-86a5-14d043eeb5a3
-if parsASF
-	ASFnsteps, ASFchi2  = asf_pars(ntx=200)
-end
-
-# ╔═╡ c2438c47-31cd-4331-a2b2-35e96957a65d
-if parsASF
-	hstepsASF, pstepsASF = step_hist(ASFnsteps;
-	              nbins=20,
-	              xlim=(0.0, 25.0),
-	              logy=false,
-	              xlabel="# steps",
-	              ylabel="#entries ",
-				  title="ASF nsteps ")
-	
-	hchi2ASF, pchi2ASF = step_hist(ASFchi2;
-	              nbins=20,
-	              xlim=(0.0, 200.0),
-	              logy=false,
-	              xlabel="chi2/dof",
-	              ylabel="#entries ",
-				  title="ASF chi2 ")
-	
-	
-
-	plot(pstepsASF, pchi2ASF, layout=(1,2), size=(800, 400))
-	
-
-end
-
 # ╔═╡ e62cf4b3-38e3-4850-a5ca-3cdc2c553d7c
-function pelt_pars(;ntx=100)
+function pelt_pars(TRZ, peaks;ntx=100)
 	
 	PLTnsteps = Int[]
 	PLTchi2   = Float64[]
 	PLTelb   = Int[]
 	
 	for ntrz in 1:ntx
-		i,j, tz = select_trace(gTRZS, gpeaks, ntrz)
+		i,j, tz = select_trace(TRZ, peaks, ntrz)
 		
 		cro, si, sf = jn.BoldLab.pelt_fit(tz)
 
@@ -846,38 +1092,56 @@ function pelt_pars(;ntx=100)
 	
 end
 
-# ╔═╡ 2929a743-3161-4edc-a78e-23f0faf3c697
-if parsPELT
-	PLTnsteps, PLTchi2, PLTelb = pelt_pars(ntx=200)
-end
+# ╔═╡ 5f8dc404-0fd0-40e6-ac6a-58ef198c4bc6
+if fitPELT
+	
+	PLTnsteps, PLTchi2, PLTelb = pelt_pars(cTRZS, cpeaks, ntx=npeaks)
+	jelbow = Int(ceil(mean(PLTnsteps)))
+	xsteps = mean(PLTnsteps)
 
-# ╔═╡ 109e210b-5c0d-4ef7-97eb-61f48f339a8b
-if parsPELT
 	hstepsPLT, pstepsPLT = step_hist(PLTnsteps;
 	              nbins=20,
-	              xlim=(0.0, 25.0),
+	              #xlim=(0.0, 25.0),
 	              logy=false,
 	              xlabel="# steps",
 	              ylabel="#entries ",
 				  title="PLT nsteps ")
 	
-	helbow, pelbow = step_hist(PLTelb;
-	              nbins=10,
-	              xlim=(0.0, 20.0),
-	              logy=false,
-	              xlabel="index elbow",
-	              ylabel="#entries ",
-				  title="Index Elbow ")
-	
 	hchi2PLT, pchi2PLT = step_hist(PLTchi2;
 	              nbins=20,
-	              xlim=(0.0, 200.0),
+	              #xlim=(0.0, 200.0),
 	              logy=false,
 	              xlabel="chi2/dof",
 	              ylabel="#entries ",
 				  title="PLT chi2 ")
+	md"""
+	#### PELT For channel =$(channel):
+	- elbow at index = $(jelbow)
+	- chi2 = $(round(mean(PLTchi2),digits=2)) +- $(round(std(PLTchi2),digits=2))
+	- steps = $(round(xsteps, digits=2)) +- $(round(std(PLTnsteps), digits=2))
+	"""
+end
+
+# ╔═╡ 2929a743-3161-4edc-a78e-23f0faf3c697
+if fitPELT
+
+	plot(pstepsPLT,  pchi2PLT,  layout=(1,2), size=(800, 400))
+end
+
+# ╔═╡ 1efde53d-d313-4a31-9747-ffd659d62426
+function get_pelt_pars(channel, gTRZS, gpeaks, rTRZS, rpeaks)
+	if channel == "green"
+		cTRZS = gTRZS
+		cpeaks = gpeaks
+		npeaks = size(gpeaks)[1]
+	else
+		cTRZS = rTRZS
+		cpeaks = rpeaks
+		npeaks = size(rpeaks)[1]
+	end
 	
-	plot(pstepsPLT,  pchi2PLT, pelbow, layout=(1,3), size=(800, 400))
+	PLTnsteps, PLTchi2, PLTelb = pelt_pars(cTRZS, cpeaks, ntx=npeaks)
+		
 	
 end
 
@@ -903,12 +1167,6 @@ function plot_peaks(imgd, peaks, nframe; colormap=:viridis)
 		p1
 	end
 end
-
-# ╔═╡ eee7f7b1-b8fd-4f54-bbfb-122195d6bd5f
-plot_peaks(gimgd, gpeaks, nframe; colormap=:viridis)
-
-# ╔═╡ 920f1c33-2c46-4158-b88f-a9bef5590e72
-plot_peaks(rimgd, rpeaks, nframe, colormap=:hot)
 
 # ╔═╡ d25301bb-0fa2-4648-a76c-fc7d7218cbde
 function select_nexp(; A_thresh = 100.0, tau_thresh = 35.0, chi2_thresh = 50.0)
@@ -986,11 +1244,6 @@ if fitEXP
 	plot_fits(VDX, VFX, VI, VJ; plotsel="5x5")
 end
 
-# ╔═╡ 588add76-c9c8-4a21-a074-374e4f5e25ff
-if fitPELT
-	plot_fits(pDX, pFX, pI, pJ; plotsel="5x5")
-end
-
 # ╔═╡ d279c0a8-bdd4-408b-9132-399a9093f5a1
 function plot_fits2(DF, VDX, VFX, VI, VJ; plotsel="5x5", figsize=(1500,1500))
     PP = []
@@ -1028,7 +1281,7 @@ function plotsdf_pelt(sdf; stept=200.0, steph=500.0, stepl=100.0, ppath="")
 	
 	hnstep, pnstep = step_hist(df_pix.nstep;
               nbins=10,
-              xlim=(0.0, 10.0),
+              #xlim=(0.0, 10.0),
               logy=false,
               xlabel=" # steps",
               ylabel=" #entries ")
@@ -1036,14 +1289,14 @@ function plotsdf_pelt(sdf; stept=200.0, steph=500.0, stepl=100.0, ppath="")
 	
 	hstptime, pstptime = step_hist(sdf.stepTime;
               nbins=25,
-              xlim=(0.0, stept),
+              #xlim=(0.0, stept),
               logy=false,
               xlabel=" step time",
               ylabel=" #entries ")
 
 	hstph, pstph = step_hist(sdf.stepHeight;
               nbins=25,
-              xlim=(0.0, steph),
+              #xlim=(0.0, steph),
               logy=false,
               xlabel=" # step height",
               ylabel=" #entries ")
@@ -1051,7 +1304,7 @@ function plotsdf_pelt(sdf; stept=200.0, steph=500.0, stepl=100.0, ppath="")
 
 	hstplx, pstplx = step_hist(sdf.stepLength;
               nbins=50,
-              xlim=(0.0, stepl),
+              #xlim=(0.0, stepl),
               logy=false,
               xlabel=" # step length",
               ylabel=" #entries ")
@@ -1065,19 +1318,13 @@ function plotsdf_pelt(sdf; stept=200.0, steph=500.0, stepl=100.0, ppath="")
 	
 end
 
-# ╔═╡ 7cfbc9b3-965b-45ca-bc33-f3a5f57b2ea3
-if fitPELT
-	plotsdf_pelt(pdf, stept=200.0, steph=200.0, stepl=200.0)
-end
-
-
 # ╔═╡ e1e3bc5d-9064-4794-91fd-23dd9f757846
 function plotsdf_exp(sdf; amax=500.0, taumax=100.0, cmax=75.0, chi2max=200.0, ppath="")
 
 	
 	ha0, pa0 = step_hist(sdf.A0;
               nbins=25,
-              xlim=(0.0, amax),
+              #xlim=(0.0, amax),
               logy=false,
               xlabel=" # A0",
               ylabel=" #entries ")
@@ -1085,22 +1332,22 @@ function plotsdf_exp(sdf; amax=500.0, taumax=100.0, cmax=75.0, chi2max=200.0, pp
 	
 	htau, ptau = step_hist(sdf.tau;
               nbins=25,
-              xlim=(0.0, taumax),
+              #xlim=(0.0, taumax),
               logy=false,
               xlabel=" tau",
               ylabel=" #entries ")
 
 	hc0, pc0 = step_hist(sdf.C0;
               nbins=25,
-              xlim=(0.0, cmax),
+              #xlim=(0.0, cmax),
               logy=false,
               xlabel=" # C0",
               ylabel=" #entries ")
 
 
-	hchi2, pchi2 = step_hist(sdf.chi2_red;
+	hchi2, pchi2 = step_hist(sdf.chi2;
               nbins=25,
-              xlim=(0.0, chi2max),
+              #xlim=(0.0, chi2max),
               logy=false,
               xlabel=" # chi2",
               ylabel=" #entries ")
@@ -1116,7 +1363,7 @@ end
 
 # ╔═╡ d68e0b2c-25e4-4b79-be90-fb1c3149f33d
 if fitEXP
-	plotsdf_exp(dfe, amax=200.0, taumax=100.0, cmax=200.0, chi2max=200.0)
+	plotsdf_exp(dfe)
 end
 
 # ╔═╡ f9c4fe44-b596-4d54-a07a-47a9ca76c108
@@ -1256,21 +1503,25 @@ md"""
 # ╔═╡ 83df15d6-5493-48ef-a8f4-29b8fc375da3
 count_mol(df; cmol="nmol") = length(unique(df[:, cmol]))
 
-# ╔═╡ 300fcee3-17cd-44f4-bd76-6c8bc03b30a4
+# ╔═╡ 2cf8cb42-61fe-4ea9-8047-7004511eaa19
 if fitPELT
-md"""
-### PELT, GREEN
-- number of fitted molecules = $(count_mol(pdf))
-"""
+	pdf, pI, pJ, pDX, pFX  = jn.BoldLab.fit_pelt(cTRZS, cpeaks, ic=jelbow) 
+	md"""
+	- number of fits = $(count_mol(pdf))
+	- average number of steps found = $(mean(pdf.nstep))
+	"""
 end
 
-# ╔═╡ ab730d0c-0e11-4aa1-acb5-48dcb250f97b
+# ╔═╡ 588add76-c9c8-4a21-a074-374e4f5e25ff
 if fitPELT
-md"""
-### PELT, RED
-- number of fitted molecules = $(count_mol(rpdf))
-"""
+	plot_fits(pDX, pFX, pI, pJ; plotsel="5x5")
 end
+
+# ╔═╡ 7cfbc9b3-965b-45ca-bc33-f3a5f57b2ea3
+if fitPELT
+	plotsdf_pelt(pdf, stept=200.0, steph=200.0, stepl=200.0)
+end
+
 
 # ╔═╡ Cell order:
 # ╠═9292025e-0d7d-11f0-365e-f1724fc39b3c
@@ -1295,22 +1546,25 @@ end
 # ╠═9cad012b-4fb3-49e1-a00b-5814991c2b3a
 # ╠═66f96c28-0883-4ef6-a777-9a8980922d60
 # ╠═967ef731-1cee-4091-8f98-4a7f080058be
+# ╠═a7cce935-9f5b-4090-9867-f944a42711bf
 # ╠═555f27e7-a820-4830-b47a-7bb50458cdc5
 # ╠═82e619dd-27d1-41b2-81e5-d102b972b3d8
 # ╠═f724b5fc-b506-4442-b6b0-92b8fc9ad16b
 # ╠═95804d28-2720-4a5a-8003-05b1bc86f00c
-# ╠═79c26992-6259-4901-8a6a-43f5d3e75ee5
+# ╠═2b4f0cb4-b41a-4eef-ac9b-88a75e195bda
+# ╠═9f4dc9d6-3e93-463b-a386-fcade500c8c4
+# ╠═7f676247-adcb-4af0-87f0-268fff96532d
+# ╠═769d6e70-3393-465a-b844-3a0edabae7be
 # ╠═89ac3496-c36a-4472-a21c-bf4fca5e79d6
 # ╠═7c79ff2d-74bc-42e0-bbd4-65f06aa50a41
 # ╠═e3ce6b68-4186-41a5-a3f1-a458b78d8821
 # ╠═62c9f533-a314-4c80-b700-8b83bc3c8f83
 # ╠═c8770df9-727b-4095-b45c-d9d10877227e
-# ╠═fa36b6d7-ad16-4020-a28e-e904d3a99128
 # ╠═04601060-8310-4e76-a2d0-8e258d2d061f
 # ╠═9c6db6db-b5b7-49e6-b275-970a29ba69cb
+# ╠═7fbc84fb-2b69-4a36-9387-f0baddff2ec7
 # ╠═91b5254a-b21a-4243-a838-811ddc90d515
 # ╠═5a63ed41-9233-4654-a37c-d00013c35197
-# ╠═797aaf3e-f284-4f62-bb1a-5514190ca422
 # ╠═4e4252bc-3b6e-4507-8817-dfe9558b51b6
 # ╠═783bbb4f-1bb1-4d57-881d-6a6f3c61e25b
 # ╠═7e40b817-a1d3-45c6-b651-136031aad7b3
@@ -1330,6 +1584,10 @@ end
 # ╠═62da10f6-0d5c-41c0-a985-d15c946f5b84
 # ╠═12960d51-135c-47cd-ab86-f2ab5bacef08
 # ╠═d34b9105-09d4-4876-842d-bcf74249cca9
+# ╠═7d46f745-39bc-4a5e-b061-426003645fd0
+# ╠═b7d00b5e-ff2b-48d8-ae03-383fe5164adf
+# ╠═49ed7c4f-fb85-4afe-9f5c-198d298d17ae
+# ╠═746576d2-d785-4cae-895e-d5a3a0b9bac5
 # ╠═4d0c63a1-89e0-4d89-846c-e1501dbc2696
 # ╠═eee7f7b1-b8fd-4f54-bbfb-122195d6bd5f
 # ╠═a74eff14-b6b4-4e80-bfc7-5a1db6a32aba
@@ -1366,35 +1624,35 @@ end
 # ╠═be2083ad-f167-419d-a674-4ecee527b7e8
 # ╠═266ff2da-2901-4431-8268-26ec23ddc483
 # ╠═64154de3-6523-444b-aa5f-6ada2ae9a9e0
-# ╠═3c5b09f0-5a58-4574-8cb6-9cf45a3c805e
-# ╠═678767ca-0ec4-4979-b4dc-f9f7d18e39dc
-# ╠═b23997a3-c47f-44d8-86a5-14d043eeb5a3
-# ╠═2929a743-3161-4edc-a78e-23f0faf3c697
-# ╠═c2438c47-31cd-4331-a2b2-35e96957a65d
-# ╠═109e210b-5c0d-4ef7-97eb-61f48f339a8b
-# ╠═5349482c-ba2a-4a85-ae2c-d6b20c8ae6e1
+# ╠═9dc7b946-6213-475f-ae6d-ebead0844463
+# ╠═fcb3f19a-a728-4afd-88b8-0ea97f8922da
+# ╠═ae2dd421-2c94-43a0-a0b8-7e964684a329
+# ╟─c2438c47-31cd-4331-a2b2-35e96957a65d
 # ╠═664b3e4a-531b-4215-9909-242358d85d15
-# ╠═cd836ae2-25dc-433d-8a06-fea4dcfbe861
+# ╟─3c5b09f0-5a58-4574-8cb6-9cf45a3c805e
+# ╟─cd836ae2-25dc-433d-8a06-fea4dcfbe861
+# ╟─f8433824-dd11-4a8d-ae98-8d323926b72f
+# ╠═5349482c-ba2a-4a85-ae2c-d6b20c8ae6e1
 # ╠═cf6e8f34-4a1d-4ea3-8b7f-e569dac6c2c3
 # ╠═5c598f18-17dc-49cf-95b0-0c555fdb17c1
 # ╠═c88c0cac-0ced-40c2-a472-a32e0e6ea20f
 # ╠═d68e0b2c-25e4-4b79-be90-fb1c3149f33d
-# ╠═ab210c22-68da-4a5b-b3e0-81d05da44c55
-# ╠═01f9827d-cef9-44db-a187-90918e70ea6f
-# ╠═9dc7b946-6213-475f-ae6d-ebead0844463
-# ╠═f8433824-dd11-4a8d-ae98-8d323926b72f
+# ╟─ab210c22-68da-4a5b-b3e0-81d05da44c55
+# ╟─01f9827d-cef9-44db-a187-90918e70ea6f
+# ╠═0a28185c-7167-46da-bd51-5036ad8796db
+# ╟─b23997a3-c47f-44d8-86a5-14d043eeb5a3
+# ╠═5f8dc404-0fd0-40e6-ac6a-58ef198c4bc6
+# ╠═2929a743-3161-4edc-a78e-23f0faf3c697
 # ╠═2cf8cb42-61fe-4ea9-8047-7004511eaa19
 # ╠═588add76-c9c8-4a21-a074-374e4f5e25ff
 # ╠═7cfbc9b3-965b-45ca-bc33-f3a5f57b2ea3
-# ╠═300fcee3-17cd-44f4-bd76-6c8bc03b30a4
-# ╠═67ffc85b-8f2e-4f6c-8a80-3ba2c441bcc3
-# ╠═f14a9a85-414d-4b0e-8f84-569b74c5953c
-# ╠═deddcc3c-f4ed-4e99-94db-bc59eb0446f4
-# ╠═ab730d0c-0e11-4aa1-acb5-48dcb250f97b
 # ╠═7ddb353f-ef75-4ffd-9273-b02a3321474c
 # ╠═d9d972f7-e196-4232-a062-c963c9147801
 # ╠═b9e5ce1f-4a86-4377-9d50-6732fae9516c
 # ╠═1be93848-5757-48e6-8d5b-638cb11c4a61
+# ╠═1efde53d-d313-4a31-9747-ffd659d62426
+# ╠═aca645d4-c3a2-4ed1-911e-df742ffc9ebf
+# ╠═797aaf3e-f284-4f62-bb1a-5514190ca422
 # ╠═1a1412b9-65b3-482e-b7c6-0da464635dec
 # ╠═e62cf4b3-38e3-4850-a5ca-3cdc2c553d7c
 # ╠═de5a1406-000a-4acb-8e70-051c0aa76429

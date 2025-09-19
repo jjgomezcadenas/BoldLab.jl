@@ -23,7 +23,7 @@ export find_max
 export detect_local_maxima
 export load_tif_stack_int16, get_tif_image, tif_to_matrix, regularize_img, regularize_stack!
 export generate_filename
-export plot_traces, plot_frames, plot_traces_stats, plot_stats, plot_traces_h2d, plot_exponential_fit, plot_pelt_fit, plot_asf_fit, plot_crops_results
+export plot_traces, plot_frames, plot_traces_stats, plot_stats, plot_traces_h2d, plot_exponential_fit, plot_pelt_fit, plot_asf_fit, plot_crops_results, plot_peaks
 export fit_pelt, PeltFit, fitpelt, pelt_fit
 export fit_asf, AsfFit
 export fit_traces_exponential, ExponentialFit, chi2_dof, elbow

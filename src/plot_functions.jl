@@ -280,6 +280,46 @@ function plot_frames_with_centroids(imst::AbstractArray{T,3}, region_stats::Vect
 end
 
 
+"""
+    plot_peaks(imgd::AbstractArray{T,3}, peaks::DataFrame, nframe::Int; 
+               colormap=:viridis, show_peaks=true)
+
+Plot a frame from a 3D image stack with detected peaks overlaid.
+
+# Arguments
+- `imgd`: 3D image array (height × width × frames)
+- `peaks`: DataFrame with columns i (row), j (column), and intensity
+- `nframe`: Frame number to display (1-indexed)
+- `colormap`: Colormap for peak intensities (default: :viridis)
+- `show_peaks`: Whether to show peaks overlay (default: true)
+
+# Returns
+- Plot object with image and optional peaks overlay
+"""
+function plot_peaks(imgd::AbstractArray{T,3}, peaks::DataFrame, nframe::Int; 
+                   colormap=:viridis, show_peaks=true) where {T<:Real}
+	# Plot the grayscale image
+	p1 = heatmap(imgd[:, :, nframe]; 
+			color = cgrad(:grays, rev = true),
+			aspect_ratio = 1, 
+			title = "Detected Peaks (Frame $nframe)")
+
+	if show_peaks && nrow(peaks) > 0
+		scatter!(p1, 
+		    peaks.j,               # x-axis (columns)
+		    peaks.i,               # y-axis (rows)
+		    zcolor = peaks.intensity,
+		    colorbar = true,
+		    marker = (:circle, 3),
+		    c = colormap,
+		    label = "Peaks",
+		    legend = false
+		)
+	end
+	
+	return p1
+end
+
 function plot_traces(TRZS, peaks; ftrz=1, ltrz=9,  figsize=(1500,1500))
     function select_trace(TRZS, df::DataFrame, row::Int) 
         i = df.i[row]
