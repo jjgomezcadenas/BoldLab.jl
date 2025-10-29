@@ -63,6 +63,15 @@ function trajectory(molecule::FBMolecule, r::typeof(1.0Hz))
     hist
 end
 
+
+""" Compute photobleaching time"""
+function photobleaching_time(molecule::FBMolecule, r::typeof(1.0Hz))
+    dpb = r / molecule.M             # rate/PB-rate 
+    argtpb = (1.0/dpb*Hz)
+    tpb = rand(Exponential(argtpb)) * 1.0s
+    return tpb
+end
+
 function spectral_fraction(fb::FBMolecule, λmin::typeof(1.0nm), λmax::typeof(1.0nm))
 	quadgk(fb.fm.pdf, λmin/nm, λmax/nm)[1]
 end
@@ -70,7 +79,7 @@ end
 
 """Generate data based on the molecule, excitation, and a DataFrame sample"""
 function generate_data(molecule::FBMolecule, exc::LaserExcitation,
-					   sample::DataFrame, NA::Float64, 
+					   sample::DataFrame, NA::Float64,
 					   λmin::typeof(1.0nm), λmax::typeof(1.0nm))
     data = deepcopy(sample)
     rs = []
@@ -79,7 +88,7 @@ function generate_data(molecule::FBMolecule, exc::LaserExcitation,
     trajs = []
     names = String[]
 	#molecule = fmb.fm
-    
+
     for row in eachrow(sample)
 		rate = rad_rate(molecule, exc, row)
         push!(rs, rate)
@@ -88,13 +97,47 @@ function generate_data(molecule::FBMolecule, exc::LaserExcitation,
         push!(trajs, trajectory(molecule, rate))
         push!(names, molecule.name)
     end
-    
+
     data.R = rs
     data.MOeff = moeffs
     data.Trajectories = trajs
     data.Name = names
 	data.Spx = spx
-    
+
+    return data
+end
+
+
+"""Generate integrated signal data without computing trajectories.
+
+   This is a faster version of generate_data that only computes the
+   total emission rate for each molecule without calculating time traces.
+   Useful when only the integrated signal is needed.
+
+   Returns DataFrame with columns: x, y, theta, phi, R, MOeff, Name, Spx
+"""
+function generate_data_integrated_signal(molecule::FBMolecule, exc::LaserExcitation,
+					                      sample::DataFrame, NA::Float64,
+					                      λmin::typeof(1.0nm), λmax::typeof(1.0nm))
+    data = deepcopy(sample)
+    rs = []
+    moeffs = Float64[]
+	spx  = Float64[]
+    names = String[]
+
+    for row in eachrow(sample)
+		rate = rad_rate(molecule, exc, row)
+        push!(rs, rate)
+		push!(spx, spectral_fraction(molecule, λmin, λmax))
+        push!(moeffs, mo_eff(NA, row))
+        push!(names, molecule.name)
+    end
+
+    data.R = rs
+    data.MOeff = moeffs
+    data.Name = names
+	data.Spx = spx
+
     return data
 end
 

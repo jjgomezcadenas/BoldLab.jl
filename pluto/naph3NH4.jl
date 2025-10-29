@@ -121,10 +121,10 @@ md"""
 
 # ╔═╡ 7280a644-4a95-4e97-83a6-16c1a9332d7c
 begin
-	NM = 1e+3
+	NM = 1e+4
 	N=Int(NM)
 	with_noise=true
-	laser_power = 1mW
+	laser_power = 1e+3mW
 	pbcycles = 5e+4 # photobleaching cycles (nγ abosorbed before pB)
 	dkcycles = 1e+5 # dark cycles (nγ abosorbed before DT)
 	tdark    =2s    # time in dark states before decaying to ground
@@ -224,13 +224,13 @@ md"""
 
 # ╔═╡ 7d2d9c04-7237-4177-8711-a67df460aec7
 begin
-	sigma  = 15μm # sigma of gaussian beam in sample
-	center = (15μm,15μm) # center of laser beam
-	dimensions = [30μm, 30μm] #effective "laser light spot"
+	#sigma  = 15μm # sigma of gaussian beam in sample
+	#center = (15μm,15μm) # center of laser beam
+	#dimensions = [30μm, 30μm] #effective "laser light spot"
 
-	#sigma  = 1e+3μm # sigma of gaussian beam in sample
-	#center = (0μm,0μm) # center of laser beam
-	#dimensions = [2e+3μm, 2e+3μm] #effectise "laser light spot"
+	sigma  = 1e+3μm # sigma of gaussian beam in sample
+	center = (0μm,0μm) # center of laser beam
+	dimensions = [2e+3μm, 2e+3μm] #effectise "laser light spot"
 	
 	lexc = LaserExcitation(lsr, sigma, center)
 end
@@ -266,17 +266,109 @@ md"""
 #### Create traces
 """
 
-# ╔═╡ 5a462159-e510-4e53-a1df-18b25b2586bd
-RunInfo
+# ╔═╡ bfc31410-0571-4066-b80d-1acfbc0ef7ee
+dft = df_traces(data, RunInfo)
+
+# ╔═╡ f61499cf-3f2f-489b-b826-135e1e116916
+begin
+	nf = 0
+	imx = hr_image(nf, dft, RunInfo)
+	heatmap(imx, colorbar=true, title="HR image frame=$(nf) ", aspect_ratio=1)
+end
+
+# ╔═╡ 09f89004-4d5f-4094-8d1a-85dbdcdd560d
+begin
+	dlrx = RunInfo["dl"] /2.0 # diffraction limit radius
+    resx = RunInfo["res"]     # resolution in the HR image = pixelscale/pixeldiv
+
+    # Pass a gaussian filter to simulate the effect of difractive limit. 
+    sigmax = uconvert(nm, dlrx)/uconvert(nm, resx)
+	imgfx = imfilter(imx, reflect(Kernel.gaussian(sigmax)))
+	heatmap(imgfx, colorbar=true, title="HR + Gaussian Filter frame =$(nf) ", aspect_ratio=1)
+end
+
+# ╔═╡ 054774b2-dbd6-4cfe-a325-538aae544415
+resx
+
+# ╔═╡ b852799f-684b-446f-905f-d4fd19f6400f
+sigmax
+
+# ╔═╡ c6ffec58-094e-4e32-bd2f-259e14a62214
+begin
+	imfx = frame2D(nf, dft, RunInfo)
+	heatmap(imfx, colorbar=true, title="Frame $(nf): HR + GF + base-noise ", aspect_ratio=1)
+end
 
 # ╔═╡ 3f715111-af88-454f-bdc2-814515f9c79b
 
 
+# ╔═╡ b4f15620-d868-4827-963c-9334b52f4303
+begin
+	f2dn =frame2Dn(imfx, RunInfo, of)
+	heatmap(f2dn, colorbar=true, title="Frame $(nf): HR + GF + all-noise ", aspect_ratio=1)
+end
+
+# ╔═╡ 1ee8e8fb-a757-458a-bbf8-a6c8559f8c01
+begin
+	f3d = frame3D(dft, RunInfo)
+	fnn = 1
+	heatmap(f3d[fnn,:,:], colorbar=true, title="f3d number $(fnn)", aspect_ratio=1)
+end
+
+# ╔═╡ 50d3c818-e3f9-47f1-b1cd-84961c7e5d11
+size(f3d)
+
 # ╔═╡ 993688d6-d02a-49ca-8ffe-56393c61e9b7
 
 
+# ╔═╡ 38cfe310-33cd-4172-b2fb-3538a9f51f10
+begin 
+	f3dn = frame3Dn(dft, RunInfo, of)
+	heatmap(f3dn[fnn,:,:], colorbar=true, title="noisy f3dn number $(fnn)", aspect_ratio=1)
+end
+
+# ╔═╡ 422d954e-86da-418d-9300-6922bfdc9c79
+f3dn
+
+# ╔═╡ 3809973e-d845-4366-b863-5aa9db3d664b
+begin
+	if with_noise
+		n3d = permutedims(f3dn, (2, 3, 1)) 
+	else
+		n3d = permutedims(f3d, (2, 3, 1)) 
+	end
+end
+
 # ╔═╡ c437156b-7e0f-453d-9ae4-4f83360b241a
 #heatmap(n3d[:,:,1], colorbar=true, title="final image. Frame number $(fnn)", aspect_ratio=1)
+
+# ╔═╡ 52a95ad2-b582-4f5b-9a2e-87dfc7ed02fc
+begin
+    FF = []
+	xm = 10
+    for i in 1:9
+        fn = (i-1) * xm + i
+        push!(FF, heatmap(n3d[:, :, fn],
+            colorbar=false,  # Optional: removes extra space
+            title="Frame $fn",
+            titlefontsize=7,
+            tickfontsize=6,
+            guidefontsize=6,
+            titlelocation=:left,
+            aspect_ratio=:equal))
+    end
+
+    plot(FF...;
+        layout=(3, 3),
+        size=(900, 900),
+        margin=1.0*Measures.mm,
+        top_margin=1.0*Measures.mm,
+        bottom_margin=1.0*Measures.mm,
+        left_margin=1.0*Measures.mm,
+        right_margin=1.0*Measures.mm,
+        plot_titlefontsize=7,
+        legendfontsize=6)
+end
 
 # ╔═╡ 14a66cac-ebaa-473e-9e98-7b60dbea5c93
 file
@@ -284,6 +376,20 @@ file
 # ╔═╡ 45ef89d8-7c20-410f-934f-aba37ff6f291
 file2 = replace(file, r"\.npy$" => ".tif")
 	
+
+# ╔═╡ 106cb7cf-a4c6-4a4f-a031-6913637b2447
+begin
+	npzwrite(file, n3d)
+end
+
+# ╔═╡ cc7cdd7c-0299-4d3b-826f-9ab73ab14fe9
+begin
+	img16 = convert.(UInt16, round.(n3d .* 65535 ./ maximum(n3d)))
+	img_gray = colorview(Gray, n3d)
+	#img32 = Float32.(n3d)
+	#img32
+	TiffImages.save(file2, img_gray)
+end
 
 # ╔═╡ 2817d6df-7553-4d93-86f8-c11f668e6749
 md"""
@@ -361,7 +467,6 @@ begin
 	RunInfo["dl"] = dl
 	RunInfo["bck"] = 400Hz # background
 	RunInfo["NHR"] = Int.( dimensions .÷ res .-1)
-	imaging_params_ready = true
 	md"""
 	- Time of measurement = $(t_meas) 
 	- Time of exposition = $(t_exp)
@@ -376,117 +481,6 @@ begin
 	- constant background = $(RunInfo["bck"])
 	"""
 
-end
-
-# ╔═╡ bfc31410-0571-4066-b80d-1acfbc0ef7ee
-if imaging_params_ready 
-	dft = df_traces(data, RunInfo)
-end
-
-# ╔═╡ f61499cf-3f2f-489b-b826-135e1e116916
-begin
-	nf = 0
-	imx = hr_image(nf, dft, RunInfo)
-	heatmap(imx, colorbar=true, title="HR image frame=$(nf) ", aspect_ratio=1)
-end
-
-# ╔═╡ 09f89004-4d5f-4094-8d1a-85dbdcdd560d
-begin
-	dlrx = RunInfo["dl"] /2.0 # diffraction limit radius
-    resx = RunInfo["res"]     # resolution in the HR image = pixelscale/pixeldiv
-
-    # Pass a gaussian filter to simulate the effect of difractive limit. 
-    sigmax = uconvert(nm, dlrx)/uconvert(nm, resx)
-	imgfx = imfilter(imx, reflect(Kernel.gaussian(sigmax)))
-	heatmap(imgfx, colorbar=true, title="HR + Gaussian Filter frame =$(nf) ", aspect_ratio=1)
-end
-
-# ╔═╡ 054774b2-dbd6-4cfe-a325-538aae544415
-resx
-
-# ╔═╡ b852799f-684b-446f-905f-d4fd19f6400f
-sigmax
-
-# ╔═╡ c6ffec58-094e-4e32-bd2f-259e14a62214
-begin
-	imfx = frame2D(nf, dft, RunInfo)
-	heatmap(imfx, colorbar=true, title="Frame $(nf): HR + GF + base-noise ", aspect_ratio=1)
-end
-
-# ╔═╡ b4f15620-d868-4827-963c-9334b52f4303
-begin
-	f2dn =frame2Dn(imfx, RunInfo, of)
-	heatmap(f2dn, colorbar=true, title="Frame $(nf): HR + GF + all-noise ", aspect_ratio=1)
-end
-
-# ╔═╡ 1ee8e8fb-a757-458a-bbf8-a6c8559f8c01
-begin
-	f3d = frame3D(dft, RunInfo)
-	fnn = 1
-	heatmap(f3d[fnn,:,:], colorbar=true, title="f3d number $(fnn)", aspect_ratio=1)
-end
-
-# ╔═╡ 50d3c818-e3f9-47f1-b1cd-84961c7e5d11
-size(f3d)
-
-# ╔═╡ 38cfe310-33cd-4172-b2fb-3538a9f51f10
-begin 
-	f3dn = frame3Dn(dft, RunInfo, of)
-	heatmap(f3dn[fnn,:,:], colorbar=true, title="noisy f3dn number $(fnn)", aspect_ratio=1)
-end
-
-# ╔═╡ 422d954e-86da-418d-9300-6922bfdc9c79
-f3dn
-
-# ╔═╡ 3809973e-d845-4366-b863-5aa9db3d664b
-begin
-	if with_noise
-		n3d = permutedims(f3dn, (2, 3, 1)) 
-	else
-		n3d = permutedims(f3d, (2, 3, 1)) 
-	end
-end
-
-# ╔═╡ 52a95ad2-b582-4f5b-9a2e-87dfc7ed02fc
-begin
-    FF = []
-	xm = 10
-    for i in 1:9
-        fn = (i-1) * xm + i
-        push!(FF, heatmap(n3d[:, :, fn],
-            colorbar=false,  # Optional: removes extra space
-            title="Frame $fn",
-            titlefontsize=7,
-            tickfontsize=6,
-            guidefontsize=6,
-            titlelocation=:left,
-            aspect_ratio=:equal))
-    end
-
-    plot(FF...;
-        layout=(3, 3),
-        size=(900, 900),
-        margin=1.0*Measures.mm,
-        top_margin=1.0*Measures.mm,
-        bottom_margin=1.0*Measures.mm,
-        left_margin=1.0*Measures.mm,
-        right_margin=1.0*Measures.mm,
-        plot_titlefontsize=7,
-        legendfontsize=6)
-end
-
-# ╔═╡ 106cb7cf-a4c6-4a4f-a031-6913637b2447
-begin
-	npzwrite(file, n3d)
-end
-
-# ╔═╡ cc7cdd7c-0299-4d3b-826f-9ab73ab14fe9
-begin
-	img16 = convert.(UInt16, round.(n3d .* 65535 ./ maximum(n3d)))
-	img_gray = colorview(Gray, n3d)
-	#img32 = Float32.(n3d)
-	#img32
-	TiffImages.save(file2, img_gray)
 end
 
 # ╔═╡ 743f3cc4-98e9-4bc8-858e-54ce328aa628
@@ -532,7 +526,6 @@ res
 # ╠═c54c8180-4f47-4c7c-b6a9-949c1685502a
 # ╠═a95a294d-f91f-4ef6-b2df-ee6da0b69155
 # ╠═020341d2-9558-4c40-a993-2fff8b1bdffe
-# ╠═5a462159-e510-4e53-a1df-18b25b2586bd
 # ╠═bfc31410-0571-4066-b80d-1acfbc0ef7ee
 # ╟─743f3cc4-98e9-4bc8-858e-54ce328aa628
 # ╠═f61499cf-3f2f-489b-b826-135e1e116916

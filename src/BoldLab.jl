@@ -5,8 +5,8 @@ using .SimpleLogger
 include("dffunctions.jl")
 include("util.jl")
 include("setup.jl")
-#include("SampleGenerators.jl")
-#include("GenerateData.jl")
+include("SampleGenerators.jl")
+include("GenerateData.jl")
 include("analysis_functions.jl")
 include("LabStepAnalysis.jl")
 using .LabStepAnalysis
@@ -40,10 +40,13 @@ export CMOS, oflash4_eff, nphe, noise
 export photon_energy, delivered_energy, n_photons, n_photons_int, photon_density
 export diffraction_limit, geometrical_acceptance, transmission
 export Sample_1D, Sample_2D, Sample_3D
-export cross_section, generate_data, trajectory
+export cross_section, generate_data, generate_data_integrated_signal, trajectory
 export traces, df_traces, real_trace, measured_trace, hr_image
 export hr_image, frame2D, frame2Dn, frame3D, frame3Dn
-#include("histos.jl")
+include("histos.jl")
+using .histos
+export hist1d, hist2d, p1df, step_hist, get_histo1d, Histo1d
+export save_histo1d, load_histo1d, save_histos, load_histos
 
 #include("AutoStepfinder.jl")
 #
